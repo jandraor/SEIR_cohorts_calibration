@@ -12,26 +12,26 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
 ```{r libraries}
-library(ggplot2)
-library(gridExtra)
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(deSolve)
-library(rstan)
-library(rethinking)
-library(stringr)
-library(ggsci)
-library(readr)
-library(MLmetrics)
-library(ggalt)
 library(bayesplot)
+library(deSolve)
+library(dplyr)
+library(ggalt)
+library(ggplot2)
+library(ggsci)
+library(gridExtra)
+library(MLmetrics)
+library(purrr)
+library(readsdr) # devtools::install_github("jandraor/readsdr")
+library(readr)
+library(rethinking)
+library(rstan)
 library(socialmixr)
-dir.path   <- "./R/readsdr/"
-files.sources <- paste0(dir.path,list.files("./R/readsdr"))
-sourced <- sapply(files.sources, source)
+library(stringr)
+library(tidyr)
+
 source("./R/graphs.R")
 source("./R/stan_utils.R")
+source("./R/summarise_results.R")
 ```
 
 # Synthetic data
@@ -235,7 +235,7 @@ ggsave("./plots/g_matrices.png", dpi = "print", height = 5, width = 5,
 
 ### By optimisation
 
-```{r optim_deterministic, cache = TRUE}
+```{r optim_deterministic, cache = FALSE}
 source("./R/optimise_SEIR.R")
 
 inits <- seq(15, 45, by = 5)
@@ -474,7 +474,7 @@ print(g_MSEs)
 ### By Stan
 
 ```{r params_Stan_sc1}
-cache_par_stan_sc1<- TRUE
+cache_par_stan_sc1<- FALSE
 n_warm_up <- 1000
 n_iter    <- 3000
 n_chains  <- 4
@@ -675,7 +675,7 @@ stan_fit_D <- stan(fit = test, data = stan_d, chains = n_chains,
 
 
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
-source("./R/summarise_results.R")
+
 
 specs_list <- list(x_pos = 2.31, ypos_mean = 28, ypos_median = 26,
                      text_size = 2, ypos_interval = 24, 
@@ -705,7 +705,7 @@ params_translation <- data.frame(
   stringsAsFactors = FALSE)
 
 color_scheme_set("purple")
-posterior <- extract(stan_fit_D, inc_warmup = TRUE, permuted = FALSE)
+posterior  <- rstan::extract(stan_fit_D, inc_warmup = TRUE, permuted = FALSE)
 post_names <- dimnames(posterior)[[3]]
 
 post_names[match(params_translation$original, post_names)] <- params_translation$new
@@ -833,7 +833,7 @@ ggsave("./plots/incidence_fit_perfect_info.pdf", dpi = "print", height = 3,
 
 ### By optimisation
 
-```{r optim_stochastic, cache = TRUE}
+```{r optim_stochastic, cache = FALSE}
 source("./R/optimise_SEIR_stc.R")
 
 inits <- seq(15, 45, by = 5)
@@ -1073,7 +1073,7 @@ print(g_MSEs)
 ### By Stan
 
 ```{r params_Stan_sc2}
-cache_par_stan_sc2 <- TRUE
+cache_par_stan_sc2 <- FALSE
 n_chains           <- 4
 n_warm_up          <- 1000
 n_iter             <- 3000
@@ -1599,4 +1599,10 @@ ggplot(MSE_WAIFW_df, aes(x = matrix, y = MSE)) +
 
 ggsave("./plots/WAIFWcomparison.pdf", dpi = "print", height = 5, 
        width = 8)
+```
+
+# Original Computing Environment
+
+```{r}
+sessionInfo()
 ```
