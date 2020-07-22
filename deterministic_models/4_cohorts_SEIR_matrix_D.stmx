@@ -40,7 +40,7 @@
 				<inflow>RR1</inflow>
 			</stock>
 			<flow name="IR1">
-				<eqn>S1 * lambda1</eqn>
+				<eqn>S1 * lambda1 / scaling_factor</eqn>
 			</flow>
 			<flow name="InR1">
 				<eqn>E1 / latent_period</eqn>
@@ -67,7 +67,7 @@
 				<inflow>RR2</inflow>
 			</stock>
 			<flow name="IR2">
-				<eqn>S2 * lambda2</eqn>
+				<eqn>S2 * lambda2 / scaling_factor</eqn>
 			</flow>
 			<flow name="InR2">
 				<eqn>E2 / latent_period</eqn>
@@ -94,7 +94,7 @@
 				<inflow>RR3</inflow>
 			</stock>
 			<flow name="IR3">
-				<eqn>S3 * lambda3</eqn>
+				<eqn>S3 * lambda3 / scaling_factor</eqn>
 			</flow>
 			<flow name="InR3">
 				<eqn>E3 / latent_period</eqn>
@@ -121,7 +121,7 @@
 				<inflow>RR4</inflow>
 			</stock>
 			<flow name="IR4">
-				<eqn>S4 * lambda4</eqn>
+				<eqn>S4 * lambda4 / scaling_factor</eqn>
 			</flow>
 			<flow name="InR4">
 				<eqn>E4 / latent_period</eqn>
@@ -243,10 +243,14 @@
 			<flow name="RI4">
 				<eqn>InR4</eqn>
 			</flow>
+			<aux name="scaling factor">
+				<eqn>1</eqn>
+			</aux>
 			<isee:dependencies>
 				<var name="IR1">
 					<in>S1</in>
 					<in>lambda1</in>
+					<in>scaling_factor</in>
 				</var>
 				<var name="InR1">
 					<in>E1</in>
@@ -259,6 +263,7 @@
 				<var name="IR2">
 					<in>S2</in>
 					<in>lambda2</in>
+					<in>scaling_factor</in>
 				</var>
 				<var name="InR2">
 					<in>E2</in>
@@ -271,6 +276,7 @@
 				<var name="IR3">
 					<in>S3</in>
 					<in>lambda3</in>
+					<in>scaling_factor</in>
 				</var>
 				<var name="InR3">
 					<in>E3</in>
@@ -283,6 +289,7 @@
 				<var name="IR4">
 					<in>S4</in>
 					<in>lambda4</in>
+					<in>scaling_factor</in>
 				</var>
 				<var name="InR4">
 					<in>E4</in>
@@ -456,7 +463,7 @@
 				<isee:spatial_map color="black" background="white" font_size="12pt"/>
 				<isee:animation_object color="black" background="white" font_size="12pt"/>
 			</style>
-			<view isee:show_pages="false" page_width="822" page_height="571" isee:page_cols="2" isee:page_rows="4" isee:scroll_y="1020" isee:popup_graphs_are_comparative="true" type="stock_flow">
+			<view isee:show_pages="false" page_width="822" page_height="571" isee:page_cols="2" isee:page_rows="4" isee:scroll_y="1080" isee:popup_graphs_are_comparative="true" type="stock_flow">
 				<style color="black" background="white" font_style="normal" font_weight="normal" text_decoration="none" text_align="center" vertical_text_align="center" font_color="black" font_family="Arial" font_size="10pt" padding="2" border_color="black" border_width="thin" border_style="none">
 					<stock color="blue" background="white" font_color="blue" font_size="9pt" label_side="top">
 						<shape type="rectangle" width="45" height="35"/>
@@ -1153,6 +1160,41 @@
 				<connector uid="107" angle="287.447">
 					<from>InR4</from>
 					<to>RI4</to>
+				</connector>
+				<aux x="227.5" y="571" name="scaling factor"/>
+				<connector uid="108" angle="140.528">
+					<from>scaling_factor</from>
+					<to>IR1</to>
+				</connector>
+				<alias color="blue" background="white" font_style="italic" uid="109" x="234.5" y="982.5" width="18" height="18">
+					<shape type="circle" radius="18"/>
+					<of>scaling_factor</of>
+				</alias>
+				<connector uid="110" angle="117.582">
+					<from>
+						<alias uid="109"/>
+					</from>
+					<to>IR2</to>
+				</connector>
+				<alias color="blue" background="white" font_style="italic" uid="111" x="234.5" y="1438" width="18" height="18">
+					<shape type="circle" radius="18"/>
+					<of>scaling_factor</of>
+				</alias>
+				<connector uid="112" angle="132.94">
+					<from>
+						<alias uid="111"/>
+					</from>
+					<to>IR3</to>
+				</connector>
+				<alias color="blue" background="white" font_style="italic" uid="113" x="240" y="1782.5" width="18" height="18">
+					<shape type="circle" radius="18"/>
+					<of>scaling_factor</of>
+				</alias>
+				<connector uid="114" angle="132.032">
+					<from>
+						<alias uid="113"/>
+					</from>
+					<to>IR4</to>
 				</connector>
 			</view>
 		</views>

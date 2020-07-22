@@ -40,7 +40,7 @@
 				<inflow>RR1</inflow>
 			</stock>
 			<flow name="IR1">
-				<eqn>S1*lambda1</eqn>
+				<eqn>S1*lambda1/scaling_factor</eqn>
 			</flow>
 			<flow name="InR1">
 				<eqn>E1 / latent_period</eqn>
@@ -67,7 +67,7 @@
 				<inflow>RR2</inflow>
 			</stock>
 			<flow name="IR2">
-				<eqn>S2 * lambda2</eqn>
+				<eqn>S2 * lambda2 / scaling_factor</eqn>
 			</flow>
 			<flow name="InR2">
 				<eqn>E2 / latent_period</eqn>
@@ -94,7 +94,7 @@
 				<inflow>RR3</inflow>
 			</stock>
 			<flow name="IR3">
-				<eqn>S3 * lambda3</eqn>
+				<eqn>S3 * lambda3 / scaling_factor</eqn>
 			</flow>
 			<flow name="InR3">
 				<eqn>E3 / latent_period</eqn>
@@ -121,7 +121,7 @@
 				<inflow>RR4</inflow>
 			</stock>
 			<flow name="IR4">
-				<eqn>S4 * lambda4</eqn>
+				<eqn>S4 * lambda4 / scaling_factor</eqn>
 			</flow>
 			<flow name="InR4">
 				<eqn>E4 / latent_period</eqn>
@@ -243,10 +243,14 @@
 				<eqn>population1 + population2 + population3 + population4</eqn>
 				<isee:summing/>
 			</aux>
+			<aux name="scaling factor">
+				<eqn>1</eqn>
+			</aux>
 			<isee:dependencies>
 				<var name="IR1">
 					<in>S1</in>
 					<in>lambda1</in>
+					<in>scaling_factor</in>
 				</var>
 				<var name="InR1">
 					<in>E1</in>
@@ -259,6 +263,7 @@
 				<var name="IR2">
 					<in>S2</in>
 					<in>lambda2</in>
+					<in>scaling_factor</in>
 				</var>
 				<var name="InR2">
 					<in>E2</in>
@@ -271,6 +276,7 @@
 				<var name="IR3">
 					<in>S3</in>
 					<in>lambda3</in>
+					<in>scaling_factor</in>
 				</var>
 				<var name="InR3">
 					<in>E3</in>
@@ -283,6 +289,7 @@
 				<var name="IR4">
 					<in>S4</in>
 					<in>lambda4</in>
+					<in>scaling_factor</in>
 				</var>
 				<var name="InR4">
 					<in>E4</in>
@@ -738,295 +745,191 @@
 					</from>
 					<to>k43</to>
 				</connector>
-				<alias font_style="italic" uid="10" x="303.5" y="196" width="51.25" height="10">
-					<shape type="name_only"/>
-					<of>latent_period</of>
-				</alias>
-				<alias font_style="italic" uid="12" x="362.375" y="848" width="51.25" height="10">
-					<shape type="name_only"/>
-					<of>latent_period</of>
-				</alias>
-				<alias font_style="italic" uid="14" x="360.375" y="1401" width="51.25" height="10">
-					<shape type="name_only"/>
-					<of>latent_period</of>
-				</alias>
-				<alias font_style="italic" uid="16" x="334.375" y="2021" width="51.25" height="10">
-					<shape type="name_only"/>
-					<of>latent_period</of>
-				</alias>
-				<alias font_style="italic" uid="18" x="465.25" y="209" width="56.25" height="10">
-					<shape type="name_only"/>
-					<of>recovery_time</of>
-				</alias>
-				<alias font_style="italic" uid="20" x="505.875" y="845" width="56.25" height="10">
-					<shape type="name_only"/>
-					<of>recovery_time</of>
-				</alias>
-				<alias font_style="italic" uid="22" x="506.875" y="1399" width="56.25" height="10">
-					<shape type="name_only"/>
-					<of>recovery_time</of>
-				</alias>
-				<alias font_style="italic" uid="24" x="480.875" y="2020" width="56.25" height="10">
-					<shape type="name_only"/>
-					<of>recovery_time</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="39" x="78" y="92" width="28" height="25">
-					<of>I1</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="40" x="245" y="117" width="36" height="24">
-					<of>I2</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="41" x="106" y="50" width="30" height="24">
-					<of>I3</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="42" x="74" y="132" width="36" height="22">
-					<of>I4</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="43" x="118.375" y="695" width="38" height="26">
-					<of>I2</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="44" x="67.125" y="758" width="33" height="24">
-					<of>I1</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="45" x="114.125" y="1275" width="39" height="23">
-					<of>I1</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="46" x="287.5" y="1178" width="36" height="27">
-					<of>I2</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="47" x="292" y="1280.5" width="33" height="27">
-					<of>I4</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="48" x="114" y="782" width="34" height="27">
-					<of>I3</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="49" x="243.5" y="657.5" width="38" height="28">
-					<of>I4</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="50" x="106.625" y="1799" width="32" height="29">
-					<of>I1</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="51" x="289.375" y="1833.5" width="37" height="29">
-					<of>I2</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="52" x="215.5" y="1763" width="35" height="27">
-					<of>I3</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="53" x="100.125" y="1893.5" width="33" height="25">
-					<of>I4</of>
-				</alias>
-				<alias font_style="italic" label_side="center" uid="54" x="156.5" y="1309" width="30" height="23">
-					<of>I3</of>
-				</alias>
-				<alias font_style="italic" uid="30" x="49.375" y="735.5" width="17.25" height="10">
-					<shape type="name_only"/>
-					<of>k12</of>
-				</alias>
-				<alias font_style="italic" uid="55" x="102.375" y="1237.5" width="17.25" height="10">
-					<shape type="name_only"/>
-					<of>k13</of>
-				</alias>
-				<alias font_style="italic" uid="32" x="81.375" y="1848.5" width="17.25" height="10">
-					<shape type="name_only"/>
-					<of>k14</of>
-				</alias>
-				<alias font_style="italic" uid="34" x="102.375" y="1210" width="17.25" height="10">
-					<shape type="name_only"/>
-					<of>k23</of>
-				</alias>
-				<alias font_style="italic" uid="36" x="288.875" y="1889" width="17.25" height="10">
-					<shape type="name_only"/>
-					<of>k24</of>
-				</alias>
-				<alias font_style="italic" uid="38" x="148" y="1778" width="17.25" height="10">
-					<shape type="name_only"/>
-					<of>k34</of>
-				</alias>
 				<aux label_side="center" x="168" y="117" width="37" height="37" name="lambda1"/>
-				<connector uid="56" angle="272.319">
+				<connector uid="39" angle="272.319">
 					<from>k12</from>
 					<to>lambda1</to>
 				</connector>
-				<connector uid="57" angle="234.917">
+				<connector uid="40" angle="234.917">
 					<from>k11</from>
 					<to>lambda1</to>
 				</connector>
-				<connector uid="58" angle="311.706">
-					<from>
-						<alias uid="41"/>
-					</from>
-					<to>lambda1</to>
-				</connector>
-				<connector uid="59" angle="341.838">
-					<from>
-						<alias uid="39"/>
-					</from>
-					<to>lambda1</to>
-				</connector>
-				<connector uid="60" angle="184.857">
-					<from>
-						<alias uid="40"/>
-					</from>
-					<to>lambda1</to>
-				</connector>
-				<connector uid="61" angle="4.53777">
+				<connector uid="41" angle="311.706">
 					<from>
 						<alias uid="42"/>
 					</from>
 					<to>lambda1</to>
 				</connector>
-				<connector uid="62" angle="156.069">
+				<connector uid="43" angle="341.838">
+					<from>
+						<alias uid="44"/>
+					</from>
+					<to>lambda1</to>
+				</connector>
+				<connector uid="45" angle="184.857">
+					<from>
+						<alias uid="46"/>
+					</from>
+					<to>lambda1</to>
+				</connector>
+				<connector uid="47" angle="4.53777">
+					<from>
+						<alias uid="48"/>
+					</from>
+					<to>lambda1</to>
+				</connector>
+				<connector uid="49" angle="156.069">
 					<from>k13</from>
 					<to>lambda1</to>
 				</connector>
-				<connector uid="63" angle="34.9025">
+				<connector uid="50" angle="34.9025">
 					<from>k14</from>
 					<to>lambda1</to>
 				</connector>
-				<connector uid="64" angle="292.521">
+				<connector uid="51" angle="292.521">
 					<from>lambda1</from>
 					<to>IR1</to>
 				</connector>
 				<aux label_side="center" x="182.5" y="724" width="37" height="37" name="lambda2"/>
-				<connector uid="65" angle="266.775">
+				<connector uid="52" angle="266.775">
 					<from>lambda2</from>
 					<to>IR2</to>
 				</connector>
-				<connector uid="66" angle="358.457">
+				<connector uid="53" angle="358.457">
 					<from>k21</from>
 					<to>lambda2</to>
 				</connector>
-				<connector uid="67" angle="156.241">
+				<connector uid="54" angle="156.241">
 					<from>k22</from>
 					<to>lambda2</to>
 				</connector>
-				<connector uid="68" angle="338.033">
+				<connector uid="55" angle="338.033">
 					<from>
-						<alias uid="43"/>
+						<alias uid="56"/>
 					</from>
 					<to>lambda2</to>
 				</connector>
-				<connector uid="69" angle="13.1861">
+				<connector uid="57" angle="13.1861">
 					<from>
-						<alias uid="44"/>
+						<alias uid="58"/>
 					</from>
 					<to>lambda2</to>
 				</connector>
-				<connector uid="70" angle="233.746">
+				<connector uid="59" angle="233.746">
 					<from>
-						<alias uid="49"/>
+						<alias uid="60"/>
 					</from>
 					<to>lambda2</to>
 				</connector>
-				<connector uid="71" angle="264.123">
+				<connector uid="61" angle="264.123">
 					<from>k24</from>
 					<to>lambda2</to>
 				</connector>
-				<connector uid="72" angle="40.44">
+				<connector uid="62" angle="40.44">
 					<from>
-						<alias uid="48"/>
+						<alias uid="63"/>
 					</from>
 					<to>lambda2</to>
 				</connector>
-				<connector uid="73" angle="128.413">
+				<connector uid="64" angle="128.413">
 					<from>k23</from>
 					<to>lambda2</to>
 				</connector>
 				<aux label_side="top" x="944.5" y="791" name="population3"/>
 				<aux label_side="center" x="207.25" y="1224" width="37" height="37" name="lambda3"/>
-				<connector uid="74" angle="0">
+				<connector uid="65" angle="0">
 					<from>
-						<alias uid="55"/>
+						<alias uid="66"/>
 					</from>
 					<to>k31</to>
 				</connector>
-				<connector uid="75" angle="0">
+				<connector uid="67" angle="0">
 					<from>k31</from>
 					<to>lambda3</to>
 				</connector>
-				<connector uid="76" angle="343.836">
+				<connector uid="68" angle="343.836">
 					<from>k32</from>
 					<to>lambda3</to>
 				</connector>
-				<connector uid="77" angle="208.301">
+				<connector uid="69" angle="208.301">
 					<from>
-						<alias uid="46"/>
+						<alias uid="70"/>
 					</from>
 					<to>lambda3</to>
 				</connector>
-				<connector uid="78" angle="27.3799">
+				<connector uid="71" angle="27.3799">
 					<from>
-						<alias uid="45"/>
+						<alias uid="72"/>
 					</from>
 					<to>lambda3</to>
 				</connector>
-				<connector uid="79" angle="277.45">
+				<connector uid="73" angle="277.45">
 					<from>lambda3</from>
 					<to>IR3</to>
 				</connector>
-				<connector uid="80" angle="147.301">
+				<connector uid="74" angle="147.301">
 					<from>
-						<alias uid="47"/>
+						<alias uid="75"/>
 					</from>
 					<to>lambda3</to>
 				</connector>
-				<connector uid="81" angle="295.773">
+				<connector uid="76" angle="295.773">
 					<from>k34</from>
 					<to>lambda3</to>
 				</connector>
-				<connector uid="82" angle="119.825">
+				<connector uid="77" angle="119.825">
 					<from>k33</from>
 					<to>lambda3</to>
 				</connector>
-				<connector uid="83" angle="49.6106">
+				<connector uid="78" angle="49.6106">
 					<from>
-						<alias uid="54"/>
+						<alias uid="79"/>
 					</from>
 					<to>lambda3</to>
 				</connector>
 				<aux label_side="center" x="182" y="1835" width="37" height="37" name="lambda4"/>
-				<connector uid="84" angle="181.401">
+				<connector uid="80" angle="181.401">
 					<from>
-						<alias uid="51"/>
+						<alias uid="81"/>
 					</from>
 					<to>lambda4</to>
 				</connector>
 				<aux label_side="top" x="1017" y="791" name="population4"/>
-				<connector uid="85" angle="136.373">
+				<connector uid="82" angle="136.373">
 					<from>k42</from>
 					<to>lambda4</to>
 				</connector>
-				<connector uid="86" angle="0">
+				<connector uid="83" angle="0">
 					<from>k41</from>
 					<to>lambda4</to>
 				</connector>
-				<connector uid="87" angle="328.962">
+				<connector uid="84" angle="328.962">
 					<from>
-						<alias uid="50"/>
+						<alias uid="85"/>
 					</from>
 					<to>lambda4</to>
 				</connector>
-				<connector uid="88" angle="290.095">
+				<connector uid="86" angle="290.095">
 					<from>lambda4</from>
 					<to>IR4</to>
 				</connector>
-				<connector uid="89" angle="33.7953">
+				<connector uid="87" angle="33.7953">
 					<from>
-						<alias uid="53"/>
+						<alias uid="88"/>
 					</from>
 					<to>lambda4</to>
 				</connector>
-				<connector uid="90" angle="43.1594">
+				<connector uid="89" angle="43.1594">
 					<from>k44</from>
 					<to>lambda4</to>
 				</connector>
-				<connector uid="91" angle="290.15">
+				<connector uid="90" angle="290.15">
 					<from>k43</from>
 					<to>lambda4</to>
 				</connector>
-				<connector uid="92" angle="237.301">
+				<connector uid="91" angle="237.301">
 					<from>
-						<alias uid="52"/>
+						<alias uid="92"/>
 					</from>
 					<to>lambda4</to>
 				</connector>
@@ -1088,35 +991,174 @@
 					<from>population</from>
 					<to>lambda1</to>
 				</connector>
-				<alias color="blue" background="white" font_style="italic" uid="99" x="328" y="711" width="18" height="18">
-					<shape type="circle" radius="18"/>
-					<of>population</of>
-				</alias>
-				<connector uid="100" angle="194.036">
+				<connector uid="99" angle="194.036">
 					<from>
-						<alias uid="99"/>
+						<alias uid="100"/>
 					</from>
 					<to>lambda2</to>
 				</connector>
-				<alias color="blue" background="white" font_style="italic" uid="101" x="371" y="1230" width="18" height="18">
-					<shape type="circle" radius="18"/>
-					<of>population</of>
-				</alias>
-				<connector uid="102" angle="188.427">
+				<connector uid="101" angle="188.427">
 					<from>
-						<alias uid="101"/>
+						<alias uid="102"/>
 					</from>
 					<to>lambda3</to>
 				</connector>
-				<alias color="blue" background="white" font_style="italic" uid="103" x="328" y="1767.5" width="18" height="18">
+				<connector uid="103" angle="204.538">
+					<from>
+						<alias uid="104"/>
+					</from>
+					<to>lambda4</to>
+				</connector>
+				<alias font_style="italic" uid="10" x="303.5" y="196" width="51.25" height="10">
+					<shape type="name_only"/>
+					<of>latent_period</of>
+				</alias>
+				<alias font_style="italic" uid="12" x="362.375" y="848" width="51.25" height="10">
+					<shape type="name_only"/>
+					<of>latent_period</of>
+				</alias>
+				<alias font_style="italic" uid="14" x="360.375" y="1401" width="51.25" height="10">
+					<shape type="name_only"/>
+					<of>latent_period</of>
+				</alias>
+				<alias font_style="italic" uid="16" x="334.375" y="2021" width="51.25" height="10">
+					<shape type="name_only"/>
+					<of>latent_period</of>
+				</alias>
+				<alias font_style="italic" uid="18" x="465.25" y="209" width="56.25" height="10">
+					<shape type="name_only"/>
+					<of>recovery_time</of>
+				</alias>
+				<alias font_style="italic" uid="20" x="505.875" y="845" width="56.25" height="10">
+					<shape type="name_only"/>
+					<of>recovery_time</of>
+				</alias>
+				<alias font_style="italic" uid="22" x="506.875" y="1399" width="56.25" height="10">
+					<shape type="name_only"/>
+					<of>recovery_time</of>
+				</alias>
+				<alias font_style="italic" uid="24" x="480.875" y="2020" width="56.25" height="10">
+					<shape type="name_only"/>
+					<of>recovery_time</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="44" x="78" y="92" width="28" height="25">
+					<of>I1</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="46" x="245" y="117" width="36" height="24">
+					<of>I2</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="42" x="106" y="50" width="30" height="24">
+					<of>I3</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="48" x="74" y="132" width="36" height="22">
+					<of>I4</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="56" x="118.375" y="695" width="38" height="26">
+					<of>I2</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="58" x="67.125" y="758" width="33" height="24">
+					<of>I1</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="72" x="114.125" y="1275" width="39" height="23">
+					<of>I1</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="70" x="287.5" y="1178" width="36" height="27">
+					<of>I2</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="75" x="292" y="1280.5" width="33" height="27">
+					<of>I4</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="63" x="114" y="782" width="34" height="27">
+					<of>I3</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="60" x="243.5" y="657.5" width="38" height="28">
+					<of>I4</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="85" x="106.625" y="1799" width="32" height="29">
+					<of>I1</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="81" x="289.375" y="1833.5" width="37" height="29">
+					<of>I2</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="92" x="215.5" y="1763" width="35" height="27">
+					<of>I3</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="88" x="100.125" y="1893.5" width="33" height="25">
+					<of>I4</of>
+				</alias>
+				<alias font_style="italic" label_side="center" uid="79" x="156.5" y="1309" width="30" height="23">
+					<of>I3</of>
+				</alias>
+				<alias font_style="italic" uid="30" x="49.375" y="735.5" width="17.25" height="10">
+					<shape type="name_only"/>
+					<of>k12</of>
+				</alias>
+				<alias font_style="italic" uid="66" x="102.375" y="1237.5" width="17.25" height="10">
+					<shape type="name_only"/>
+					<of>k13</of>
+				</alias>
+				<alias font_style="italic" uid="32" x="81.375" y="1848.5" width="17.25" height="10">
+					<shape type="name_only"/>
+					<of>k14</of>
+				</alias>
+				<alias font_style="italic" uid="34" x="102.375" y="1210" width="17.25" height="10">
+					<shape type="name_only"/>
+					<of>k23</of>
+				</alias>
+				<alias font_style="italic" uid="36" x="288.875" y="1889" width="17.25" height="10">
+					<shape type="name_only"/>
+					<of>k24</of>
+				</alias>
+				<alias font_style="italic" uid="38" x="148" y="1778" width="17.25" height="10">
+					<shape type="name_only"/>
+					<of>k34</of>
+				</alias>
+				<alias color="blue" background="white" font_style="italic" uid="100" x="328" y="711" width="18" height="18">
 					<shape type="circle" radius="18"/>
 					<of>population</of>
 				</alias>
-				<connector uid="104" angle="204.538">
+				<alias color="blue" background="white" font_style="italic" uid="102" x="371" y="1230" width="18" height="18">
+					<shape type="circle" radius="18"/>
+					<of>population</of>
+				</alias>
+				<alias color="blue" background="white" font_style="italic" uid="104" x="328" y="1767.5" width="18" height="18">
+					<shape type="circle" radius="18"/>
+					<of>population</of>
+				</alias>
+				<aux x="252.5" y="1491" name="scaling factor"/>
+				<connector uid="105" angle="135.406">
+					<from>scaling_factor</from>
+					<to>IR3</to>
+				</connector>
+				<alias color="blue" background="white" font_style="italic" uid="106" x="225.5" y="2120" width="18" height="18">
+					<shape type="circle" radius="18"/>
+					<of>scaling_factor</of>
+				</alias>
+				<connector uid="107" angle="120.847">
 					<from>
-						<alias uid="103"/>
+						<alias uid="106"/>
 					</from>
-					<to>lambda4</to>
+					<to>IR4</to>
+				</connector>
+				<alias color="blue" background="white" font_style="italic" uid="108" x="237" y="939" width="18" height="18">
+					<shape type="circle" radius="18"/>
+					<of>scaling_factor</of>
+				</alias>
+				<connector uid="109" angle="127.875">
+					<from>
+						<alias uid="108"/>
+					</from>
+					<to>IR2</to>
+				</connector>
+				<alias color="blue" background="white" font_style="italic" uid="110" x="210" y="298" width="18" height="18">
+					<shape type="circle" radius="18"/>
+					<of>scaling_factor</of>
+				</alias>
+				<connector uid="111" angle="128.853">
+					<from>
+						<alias uid="110"/>
+					</from>
+					<to>IR1</to>
 				</connector>
 			</view>
 		</views>
