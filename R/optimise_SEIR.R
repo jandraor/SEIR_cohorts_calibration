@@ -1,97 +1,124 @@
-optimise_SEIR <- function(matrix_type, data_list, init.WAIFW = 20) {
-  
-  age_0_4_data     <- data_list$age_0_4_data
-  age_5_14_data    <- data_list$age_5_14_data
-  age_15_44_data   <- data_list$age_15_44_data
-  age_45_over_data <- data_list$age_45_over_data
+
+#' Optimise SEIR
+#'
+#' @param init_K List of init values
+#' @param matrix_type A character. It is an upper-case letter indicating the 
+#' matrix structure assumed for the simulation model.
+#' @param data_list A list in which each element is a vector of incidence data
+#' for a specific cohort.
+optimise_SEIR <- function(init_K, matrix_type, data_list, sim_specs) {
   
   model_file     <- paste0("./deterministic_models/4_cohorts_SEIR_matrix_",
                            matrix_type, ".stmx")
-  mdl            <- read_xmile(model_file)
-  ds_consts      <- mdl$deSolve_components$consts %>% sort()
-  ds_func        <- mdl$deSolve_components$func
-  ds_stocks      <- output_gsi$stocks
-  constant_names <- names(ds_consts)
-  si_pars        <- c("recovery_time", "latent_period")
-  params         <- constant_names[!constant_names%in% si_pars ] %>% sort()
   
-  # Create time vector
-  simtime <- seq(0, 50, by = 1 / 128)
+  const_list     <- list(latent_period = 1,
+                         recovery_time = 2)
   
-  generate_inc_func <- function() {
-    
-    function(pars) {
-      ds_consts["latent_period"] <- 1
-      ds_consts["recovery_time"] <- 2
-      
-      for(i in seq(length(params))) {
-        param             <- params[[i]]
-        ds_consts[param]  <- pars[[i]]
-      }
-      
-      o <- ode(
-        y     = ds_stocks, times = simtime,
-        func  = ds_func,
-        parms = ds_consts, method = "rk4") %>% data.frame() %>% 
-        filter(time - trunc(time) == 0) %>% 
-        mutate(eI1 = I1 + R1, 
-               incidence1 = eI1 - lag(eI1, default = eI1[1]),
-               incidence1 = round(incidence1),
-               eI2 = I2 + R2, 
-               incidence2 = eI2 - lag(eI2, default = eI2[1]),
-               incidence2 = round(incidence2),
-               eI3 = I3 + R3, 
-               incidence3 = eI3 - lag(eI3, default = eI3[1]),
-               incidence3 = round(incidence3),
-               eI4 = I4 + R4, 
-               incidence4 = eI4 - lag(eI4, default = eI4[1]),
-               incidence4 = round(incidence4)) %>% 
-        select(time, contains("incidence")) %>% 
-        filter(time != 0)
-    }
-  }
+  mdl            <- read_xmile(model_file, const_list = const_list,
+                               stock_list = sim_specs$stock_list)
   
-  get_incidence <- generate_inc_func()
+  get_incidence  <- generate_inc_func(mdl, sim_specs)
   
-  poisson.loglik <-  function (params) {
-    
-    if(any(sign(params) == -1)) return(Inf)
-
-    sim_incidences <- get_incidence(params)
-    
-    lik1 <- -1 * sum(dpois(lambda = sim_incidences$incidence1 + 0.0000001, x = age_0_4_data, 
-                           log = TRUE))
-    
-    lik2 <- -1 * sum(dpois(lambda = sim_incidences$incidence2 + 0.0000001, x = age_5_14_data, 
-                           log = TRUE))
-    
-    lik3 <- -1 * sum(dpois(lambda = sim_incidences$incidence3 + 0.0000001, x = age_15_44_data, 
-                           log = TRUE))
-    
-    lik4 <- -1 * sum(dpois(lambda = sim_incidences$incidence4 + 0.0000001 , x = age_45_over_data, 
-                           log = TRUE))
-    
-    sum(lik1, lik2, lik3, lik4)
-  }
+  poisson.loglik <- generate_ll(get_incidence)
   
-  optim_fit <- optim(par = rep(init.WAIFW, length(params)), 
-                     fn = poisson.loglik, 
-                     method = "Nelder-Mead")
+  tic()
   
-  names(optim_fit$par) <- params
+  optim_result <- mclapply(init_K, run_optim, mc.cores = 4,
+                           loglik = poisson.loglik)
+  
+  toc(quiet = TRUE, log = TRUE)
+  
+  log.lst <- tic.log(format = FALSE)
   
   translation_df <- tibble(
     index_group = 1:4,
     var_incidence = paste0("incidence", 1:4),
     age_group = age_groups <- c("00-04", "05-14", "15-44", "45+"))
   
+  result <- lapply(optim_result, best_fit, get_incidence = get_incidence)
+  
+  list(result    = result,
+       time      = log.lst)
+}
+
+generate_inc_func <- function(mdl, sim_specs) {
+  
+  ds_consts      <- mdl$deSolve_components$consts %>% sort()
+  ds_func        <- mdl$deSolve_components$func
+  ds_stocks      <- mdl$deSolve_components$stocks
+  constant_names <- names(ds_consts)
+  
+  # Create time vector
+  start_time   <- sim_specs$start_time
+  stop_time    <- sim_specs$stop_time
+  step_size    <- sim_specs$step_size
+  integ_method <- sim_specs$integ_method
+  
+  simtime <- seq(start_time, stop_time, by = step_size)
+  
+  function(pars) {
+    
+    for(i in seq_along(pars)) {
+      par_name             <- names(pars[i])
+      ds_consts[par_name]  <- pars[[i]]
+    }
+    
+    o <- ode(y     = ds_stocks, times  = simtime, func  = ds_func,  
+             parms = ds_consts, method = integ_method)
+    
+    o_df <- data.frame(o) %>% filter(time - trunc(time) == 0)
+    
+    incidence_df <- o_df %>% dplyr::select(time, starts_with("C")) %>% 
+      pivot_longer(-time) %>% 
+      group_by(name) %>% 
+      mutate(y_hat = round(value - lag(value), 0)) %>% ungroup() %>% 
+      filter(time != 0) %>% 
+      mutate(variable = str_replace(name, "C", "y_hat")) %>% 
+      dplyr::select(-name, -value) %>% 
+      pivot_wider(names_from = variable, values_from = y_hat)
+  }
+}
+
+run_optim <- function(init_K, loglik) {
+  
+  optim_fit <- optim(par     = init_K, 
+                     fn      = loglik, 
+                     method  = "Nelder-Mead",
+                     control = list(maxit = 3000))
+}
+
+# Generate log-likelihood function
+generate_ll <- function(get_incidence) {
+  
+  function (pars) {
+    
+    if(any(sign(pars) == -1)) return(Inf)
+    
+    sim_incidences <- get_incidence(pars)
+    
+    n_cohorts      <- ncol(sim_incidences) - 1
+    
+    # Log-likelihoods
+    ll <- vector(mode = "numeric", length = n_cohorts)
+    
+    for(i in seq_len(n_cohorts)) {
+      ll[[i]] <- -1 * sum(dpois(lambda = sim_incidences[[i + 1]] + 0.0000001, 
+                                x = data_list[[i]], 
+                                log = TRUE))
+    }
+    
+    sum(ll)
+  }
+}
+
+best_fit <- function(optim_fit, get_incidence) {
+  
   fit_df <- get_incidence(optim_fit$par) %>%
-    pivot_longer(-time, names_to = "var_incidence", values_to = "incidence") %>% 
-    mutate(source = "sim data") %>% left_join(translation_df) %>% 
-    select(-var_incidence, index_group)
+    pivot_longer(-time, names_to = "cohort", values_to = "y") %>% 
+    mutate(index = as.numeric(str_replace(cohort, "y_hat", "")),
+           source = "sim data") %>% 
+    dplyr::select(-cohort)
   
   list(fit = optim_fit,
        fit_df = fit_df)
 }
-  
-    
