@@ -1,0 +1,87 @@
+---
+title: "Appendix B"
+output:
+  pdf_document: 
+    number_sections: true
+  html_notebook: default
+header-includes:
+  - \usepackage{booktabs}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+## WORKAROUND: https://github.com/rstudio/rstudio/issues/6692
+## Revert to 'sequential' setup of PSOCK cluster in RStudio Console on macOS and R 4.0.0
+if (Sys.getenv("RSTUDIO") == "1" && !nzchar(Sys.getenv("RSTUDIO_TERM")) && 
+    Sys.info()["sysname"] == "Darwin" && getRversion() == "4.0.0") {
+  parallel:::setDefaultClusterOptions(setup_strategy = "sequential")
+}
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(socialmixr)
+
+source("./R/graphs.R")
+```
+
+
+# Sensitivity to population size
+
+```{r}
+source("./R/synthetic_params.R")
+
+pop_sizes  <- 10 ** (4:6)
+age_limits <- c(0, 5, 15, 45)
+
+output_sp_list <- lapply(pop_sizes, produce_synthetic_params, 
+                         age_limits = age_limits)
+```
+
+
+## Synthetic K matrix
+
+For all population scenarios.
+
+```{r}
+output_sp_list[[1]]$g_K_matrix
+```
+
+## Synthetic incidences
+
+Reporting fraction = 0.8
+
+```{r}
+
+```
+
+
+## Calibration 
+
+### Population size (n = 10,000)
+
+### Population size (n = 100,000)
+
+### Population size (n = 1,000,000)
+
+### Time comparison
+
+
+# Sensitivity to number of cohorts
+
+## Synthetic incidences
+
+## Calibration
+
+### 4 cohorts
+
+### 8 cohorts
+
+# Original Computing Environment
+
+```{r}
+sessionInfo()
+```
