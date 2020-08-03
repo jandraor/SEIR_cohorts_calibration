@@ -20,21 +20,43 @@ if (Sys.getenv("RSTUDIO") == "1" && !nzchar(Sys.getenv("RSTUDIO_TERM")) &&
 ```
 
 ```{r}
+library(deSolve)
 library(dplyr)
+library(GGally)
+library(ggalt)
 library(ggplot2)
+library(ggpubr)
+library(gridExtra)
+library(Metrics)
+library(purrr)
+library(readsdr)
 library(reshape2)
+library(scales)
 library(socialmixr)
+library(stringr)
+library(tidyr)
 
 source("./R/graphs.R")
+source("./R/Metrics.R")
+source("./R/summaries_utils.R")
 ```
 
 
 # Sensitivity to population size
 
+## Scenarios
+
+1. N = 10,000
+2. N = 100,000
+3. N = 1,000,000
+
 ```{r}
 source("./R/synthetic_params.R")
 
-pop_sizes  <- 10 ** (4:6)
+case_names       <- c("10k", "100k", "1M")
+pop_sizes        <- 10 ** (4:6)
+names(pop_sizes) <- case_names
+
 age_limits <- c(0, 5, 15, 45)
 
 output_sp_list <- lapply(pop_sizes, produce_synthetic_params, 
@@ -47,6 +69,18 @@ output_sp_list <- lapply(pop_sizes, produce_synthetic_params,
 For all population scenarios.
 
 ```{r}
+# Symmetrical matrix
+conceptual_matrix_sym <- c("k11", "k12", "k13", "k14",
+                           "k12", "k22", "k23", "k24",
+                           "k13", "k23", "k33", "k34",
+                           "k14", "k24", "k34", "k44")
+
+actual_K <- output_sp_list[[1]]$K_matrix
+
+grey_actual_K <- output_sp_list[[1]]$g_K_matrix +
+  scale_fill_gradient(low = "#D3D3D3", high = "#696969") +
+  labs(subtitle = "Actual K")
+
 output_sp_list[[1]]$g_K_matrix
 ```
 
@@ -55,30 +89,678 @@ output_sp_list[[1]]$g_K_matrix
 Reporting fraction = 0.8
 
 ```{r}
+source("./R/synthetic_incidence.R")
 
+seed               <- 49732
+stop_time          <- 50
+reporting_fraction <- 0.8
+length_data        <- stop_time
+
+output_gsi <- lapply(output_sp_list, generate_synthetic_incidence,
+                     stop_time = stop_time, 
+                     reporting_fraction = reporting_fraction,
+                     seed = seed)
+names(output_gsi) <- case_names
+```
+
+```{r}
+combined_df <- imap_dfr(output_gsi, function(syn_obj, label) {
+  syn_obj$tidy_list$und %>% mutate(case = label)
+}) %>% mutate(case = factor(case, levels = case_names))
+
+ggplot(combined_df, aes(x = time, y = y)) +
+  geom_col(fill = "steelblue") +
+  scale_y_continuous(labels = comma) +
+  facet_grid(case ~ cohort, scales = "free") +
+  theme_pubr() +
+  labs(title = "Incidence per age group and scenario",
+       y = "Incidence [cases / day]",
+       x = "Days")
 ```
 
 
 ## Calibration 
 
-### Population size (n = 10,000)
+```{r params_Stan_und}
+source("./R/stan_utils.R")
+source("./R/write_SEIR_model.R")
+source("./R/summarise_results.R")
 
-### Population size (n = 100,000)
+n_warm_up <- 1000
+n_iter    <- 1000
+n_chains  <- 4
+mtx       <- "sym"
 
-### Population size (n = 1,000,000)
+arg_list_outline <- list(fit    = NULL,
+                         data   = NULL, 
+                         chains = n_chains,
+                         warmup = n_warm_up, 
+                         iter   = n_iter, 
+                         cores  = 4,
+                         seed   = NULL, 
+                         refresh = 5)
 
-### Time comparison
+stan_d_outline <- list(n_obs    = length_data,
+                       n_params = 10,
+                       n_difeq  = 20, # number of differential equations
+                       y1       = NULL,
+                       y2       = NULL,
+                       y3       = NULL,
+                       y4       = NULL,
+                       t0       = 0,
+                       ts       = 1:length_data)
+
+params_prior <- c("  params ~ normal(0, 10)", 
+                  "  rho    ~ normal(0.5, 0.5)")
+
+# Sensitivity summary
+sens_summary         <- vector(mode = "list", length(case_names))
+names(sens_summary)  <- case_names
+
+stan_fit_list     <- vector(mode = "list", length(case_names))
+names(stan_fit_list)  <- case_names
+
+time_sens         <- vector(mode = "list", length(case_names))
+names(time_sens)  <- case_names
+```
 
 
-# Sensitivity to number of cohorts
+### Population size (N = 10,000)
+
+```{r}
+case     <- "10k"
+filename <- str_glue("./Stan_files/Sens_analysis/Sens_{case}.stan")
+
+par_pop <- output_gsi[[case]]$const_list$population
+o_SEIR  <- write_SEIR_model(mtx, filename, output_gsi[[case]]$stock_list, 
+                           params_prior, pop_size = par_pop, "underreporting")
+
+stan_d    <- stan_d_outline
+
+und_data  <- output_gsi[[case]]$data_list$und
+stan_d$y1 <- und_data[[1]]
+stan_d$y2 <- und_data[[2]]
+stan_d$y3 <- und_data[[3]]
+stan_d$y4 <- und_data[[4]]
+
+seed             <- 571156516
+arg_list         <- arg_list_outline
+arg_list$data    <- stan_d
+arg_list$seed    <- seed
+arg_list$data$y0 <- o_SEIR$stock_inits
+
+var_cache             <- TRUE
+cache_file            <- str_glue("./object_fits/Stan/Sens_analysis/stan_fit_{case}.rds")
+output                <- run_stan(filename, var_cache, cache_file, arg_list)
+stan_fit_list[[case]] <- output$stan_fit
+time_sens[[case]]     <- output$time
+```
+
+```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
+                   text_size = 2, ypos_interval = 14,
+                   title = "Symmetric matrix", xlabel = "")
+
+
+sens_summary[[case]] <- summarise_results(stan_fit_list[[case]], 
+                                          conceptual_matrix_sym,
+                                          output_gsi[[case]]$tidy_list$und, 
+                                          output_sp_list[[case]]$population, 
+                                          specs_list, 
+                                          o_SEIR$params, actual_K,
+                                          scenario = "underreporting")
+
+pred_K <- sens_summary[[case]]$summary_k$g_k_hat + 
+  labs(subtitle = "Predicted K")
+
+grid.arrange(pred_K, grey_actual_K, ncol = 2)
+```
+
+```{r fig.height = 2.5, fig.align = 'center'}
+sens_summary[[case]]$ts_summary$g_comparison
+```
+
+
+### Population size (N = 100,000)
+
+```{r}
+case     <- "100k"
+filename <- str_glue("./Stan_files/Sens_analysis/Sens_{case}.stan")
+
+par_pop <- output_gsi[[case]]$const_list$population
+o_SEIR  <- write_SEIR_model(mtx, filename, output_gsi[[case]]$stock_list, 
+                           params_prior, pop_size = par_pop, "underreporting")
+
+stan_d    <- stan_d_outline
+
+und_data  <- output_gsi[[case]]$data_list$und
+stan_d$y1 <- und_data[[1]]
+stan_d$y2 <- und_data[[2]]
+stan_d$y3 <- und_data[[3]]
+stan_d$y4 <- und_data[[4]]
+
+seed             <- 33130451
+arg_list         <- arg_list_outline
+arg_list$data    <- stan_d
+arg_list$seed    <- seed
+arg_list$data$y0 <- o_SEIR$stock_inits
+
+var_cache             <- TRUE
+cache_file            <- str_glue("./object_fits/Stan/Sens_analysis/stan_fit_{case}.rds")
+output                <- run_stan(filename, var_cache, cache_file, arg_list)
+stan_fit_list[[case]] <- output$stan_fit
+time_sens[[case]]     <- output$time
+```
+
+```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
+                   text_size = 2, ypos_interval = 14,
+                   title = "Symmetric matrix", xlabel = "")
+
+
+sens_summary[[case]] <- summarise_results(stan_fit_list[[case]], 
+                                          conceptual_matrix_sym,
+                                          output_gsi[[case]]$tidy_list$und, 
+                                          output_sp_list[[case]]$population, 
+                                          specs_list, 
+                                          o_SEIR$params, actual_K,
+                                          scenario = "underreporting")
+
+pred_K <- sens_summary[[case]]$summary_k$g_k_hat + 
+  labs(subtitle = "Predicted K")
+
+grid.arrange(pred_K, grey_actual_K, ncol = 2)
+```
+
+```{r fig.height = 2.5, fig.align = 'center'}
+sens_summary[[case]]$ts_summary$g_comparison
+```
+
+### Population size (N = 1,000,000)
+
+```{r}
+case     <- "1M"
+filename <- str_glue("./Stan_files/Sens_analysis/Sens_{case}.stan")
+
+par_pop <- output_gsi[[case]]$const_list$population
+o_SEIR  <- write_SEIR_model(mtx, filename, output_gsi[[case]]$stock_list, 
+                           params_prior, pop_size = par_pop, "underreporting")
+
+stan_d    <- stan_d_outline
+
+und_data  <- output_gsi[[case]]$data_list$und
+stan_d$y1 <- und_data[[1]]
+stan_d$y2 <- und_data[[2]]
+stan_d$y3 <- und_data[[3]]
+stan_d$y4 <- und_data[[4]]
+
+seed             <- 9207491
+arg_list         <- arg_list_outline
+arg_list$data    <- stan_d
+arg_list$seed    <- seed
+arg_list$data$y0 <- o_SEIR$stock_inits
+
+var_cache             <- TRUE
+cache_file            <- str_glue("./object_fits/Stan/Sens_analysis/stan_fit_{case}.rds")
+output                <- run_stan(filename, var_cache, cache_file, arg_list)
+stan_fit_list[[case]] <- output$stan_fit
+time_sens[[case]]     <- output$time
+```
+
+```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
+                   text_size = 2, ypos_interval = 14,
+                   title = "Symmetric matrix", xlabel = "")
+
+
+sens_summary[[case]] <- summarise_results(stan_fit_list[[case]], 
+                                          conceptual_matrix_sym,
+                                          output_gsi[[case]]$tidy_list$und, 
+                                          output_sp_list[[case]]$population, 
+                                          specs_list, 
+                                          o_SEIR$params, actual_K,
+                                          scenario = "underreporting")
+
+pred_K <- sens_summary[[case]]$summary_k$g_k_hat + 
+  labs(subtitle = "Predicted K")
+
+grid.arrange(pred_K, grey_actual_K, ncol = 2)
+```
+
+```{r fig.height = 2.5, fig.align = 'center'}
+sens_summary[[case]]$ts_summary$g_comparison
+```
+## Reporting value
+
+```{r}
+
+rv_stan  <- map_df(sens_summary, function(sum_stan) {
+  rho_list <- sum_stan$rho_hat
+  
+  data.frame(y = rho_list$mean,
+             lower.bound = rho_list$lower_bound,
+             upper.bound = rho_list$upper_bound)
+}) %>% mutate(x = factor(case_names, levels = case_names))
+
+ggplot(rv_stan, aes(x = x, y = y)) +
+    geom_point() +
+    geom_errorbar(aes(ymin = lower.bound, ymax = upper.bound), width =.1) +
+    geom_hline(yintercept = reporting_fraction, linetype = "dashed") +
+    scale_y_continuous(limits = c(0.7, 0.9)) +
+    theme_pubr() +
+    theme(legend.text  = element_text(size = 3)) +
+    labs(x = "Scenario", y = "Reporting fraction",
+         title = "Reporting fraction by scenario")
+```
+## $R_0$
+
+```{r}
+R0_df <- map_df(sens_summary, consolidate_R0) %>% 
+  mutate(x = factor(case_names, levels = case_names))
+
+ggplot(R0_df, aes(x = x, y = R0)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower.bound, ymax = upper.bound), width =.1) +
+  geom_hline(yintercept = output_sp_list[[1]]$theoretical_R0, 
+             linetype = "dashed") +
+  scale_y_continuous(limits = c(2.2, 2.4)) +
+  theme_pubr() +
+  theme(legend.text  = element_text(size = 3)) +
+  labs(x = "Scenario", y = bquote(R[0]),
+       caption = "The dashed line indicates the actual value")
+```
+## Time comparison
+
+```{r}
+times <- map_dbl(time_sens, calculate_time)
+
+time_df <- data.frame(x = pop_sizes, y = times)
+
+ggplot(time_df, aes(x = x, y = y)) +
+  geom_lollipop(colour = "steelblue") +
+  geom_line(colour = "grey30", alpha = 0.5, linetype = "dotted") +
+  scale_x_log10(labels = comma) +
+  theme_pubr() +
+  labs(x = "Population size",
+       y = "Time [Minutes]",
+       title = "Run time per scenario")
+```
+
+
+
+# Sensitivity to the number of cohorts
+
+## Scenarios
+
+1. n = 4
+2. n = 5
+3. n = 6
+
+```{r}
+case_names         <- c("n4", "n5", "n6")
+n_coh              <- 4:6
+names(n_coh)       <- case_names
+pop_size           <- 1e5
+stop_time          <- 50
+reporting_fraction <- 0.8
+length_data        <- stop_time
+
+source("./R/matrix_utils.R")
+cm_list    <- lapply(n_coh, get_cm_sym)
+case_names -> names(cm_list)
+```
+
+## K matrices
+
+```{r}
+age_limits_list <- list(c(0, 5, 15, 45),
+                        c(0, 5, 10, 15, 45),
+                        c(0, 5, 10, 15, 20, 45))
+
+names(age_limits_list) <- case_names
+
+output_sp_list  <- lapply(age_limits_list, function(age_limits, pop_size){
+  produce_synthetic_params(pop_size, age_limits)
+}, pop_size = pop_size)
+
+titles <- paste0("n = ", n_coh)
+
+g_K_matrix_list <- purrr::map(output_sp_list, "g_K_matrix") %>% 
+  map2(titles, function(g_obj, title) {
+    g_obj + labs(subtitle = title)
+  })
+
+grey_K_list <- lapply(output_sp_list, function(output_sp) {
+  output_sp$g_K_matrix +
+  scale_fill_gradient(low = "#D3D3D3", high = "#696969") +
+  labs(subtitle = "Actual K")
+})
+
+do.call("grid.arrange", c(g_K_matrix_list, ncol = 1))
+```
+
+## $R0$
+
+```{r}
+actual_R0 <- data.frame(x  = case_names,
+                        R0 = map_dbl(output_sp_list, "theoretical_R0"))
+```
+
+1. For n = 4, `r round(actual_R0[[1, 2]], 2)`
+1. For n = 5, `r round(actual_R0[[2, 2]], 2)`
+1. For n = 6, `r round(actual_R0[[3, 2]], 2)`
 
 ## Synthetic incidences
 
+```{r}
+seed       <- 648717
+output_gsi <- lapply(output_sp_list, generate_synthetic_incidence,
+                     stop_time = stop_time, 
+                     reporting_fraction = reporting_fraction,
+                     seed = seed)
+```
+
+```{r}
+df <- output_gsi[[1]]$tidy_list$und
+
+ggplot(df, aes(x = time, y = y)) +
+  geom_col(fill = "steelblue") +
+  facet_wrap(~cohort) +
+  theme_pubr() +
+  labs(title = "Incidence per age group and scenario",
+       subtitle = "n = 4")
+```
+
+```{r}
+df <- output_gsi[[2]]$tidy_list$und
+
+ggplot(df, aes(x = time, y = y)) +
+  geom_col(fill = "steelblue") +
+  facet_wrap(~cohort) +
+  theme_pubr() +
+  labs(title = "Incidence per age group and scenario",
+       subtitle = "n = 5")
+```
+
+```{r}
+df <- output_gsi[[3]]$tidy_list$und
+
+ggplot(df, aes(x = time, y = y)) +
+  geom_col(fill = "steelblue") +
+  facet_wrap(~cohort) +
+  theme_pubr() +
+  labs(title = "Incidence per age group and scenario",
+       subtitle = "n = 6")
+```
+
+
+
 ## Calibration
 
-### 4 cohorts
+```{r cal_coh}
+n_warm_up <- 1000
+n_iter    <- 1000
+n_chains  <- 4
 
-### 8 cohorts
+arg_list_outline <- list(fit    = NULL,
+                         data   = NULL, 
+                         chains = n_chains,
+                         warmup = n_warm_up, 
+                         iter   = n_iter, 
+                         cores  = 4,
+                         seed   = NULL, 
+                         refresh = 5)
+
+params_prior <- c("  params ~ normal(0, 10)", 
+                  "  rho    ~ normal(0.5, 0.5)")
+
+# Sensitivity to number of cohorts summary
+sens_coh_summary        <- vector(mode = "list", length(case_names))
+names(sens_coh_summary) <- case_names
+
+coh_fit_list        <- vector(mode = "list", length(case_names))
+names(coh_fit_list) <- case_names
+
+time_coh        <- vector(mode = "list", length(case_names))
+names(time_coh) <- case_names
+```
+
+### 4 Cohorts
+
+```{r}
+coh <- "n4"
+nc  <- n_coh[[coh]]
+
+
+y_list        <- output_gsi[[coh]]$data_list$und
+names(y_list) <- paste0("y", 1:length(y_list))
+
+stan_d <- c(list(n_obs    = length_data,
+                 n_difeq  = length(output_gsi[[coh]]$stock_list), # number of differential equations
+                 t0       = 0,
+                 ts       = 1:length_data),
+                 n_params = (1 + nc) * (nc / 2),
+                 y_list)
+
+filename     <- str_glue("./Stan_files/Sens_analysis/{nc}_cohorts.stan")
+
+o_SEIR <- write_SEIR_model(mtx, filename, output_gsi[[coh]]$stock_list, 
+                                 params_prior, pop_size = pop_size, 
+                                 "underreporting", n = nc)
+
+seed             <- 478219
+arg_list         <- arg_list_outline
+arg_list$data    <- stan_d
+arg_list$seed    <- seed
+arg_list$data$y0 <- o_SEIR$stock_inits
+
+var_cache            <- TRUE
+cache_file           <- str_glue("./object_fits/Stan/stan_fit_und_{nc}n_{mtx}.rds")
+output               <- run_stan(filename, var_cache, cache_file, arg_list)
+coh_fit_list[[coh]]  <- output$stan_fit
+time_coh[[coh]]      <- output$time
+```
+
+```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
+                   text_size = 2, ypos_interval = 14,
+                   title = "Symmetric matrix", xlabel = "")
+
+
+sens_coh_summary[[coh]] <- summarise_results(coh_fit_list[[coh]],
+                                             cm_list[[coh]],
+                                             output_gsi[[coh]]$tidy_list$und, 
+                                             output_sp_list[[coh]]$population, 
+                                             specs_list, 
+                                             o_SEIR$params, 
+                                             output_sp_list[[coh]]$K_matrix,
+                                             scenario = "underreporting")
+
+pred_K <- sens_coh_summary[[coh]]$summary_k$g_k_hat + 
+  labs(subtitle = "Predicted K")
+
+grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2)
+```
+```{r fig.height = 2.5, fig.align = 'center'}
+sens_coh_summary[[coh]]$ts_summary$g_comparison
+```
+
+
+### 5 Cohorts
+
+```{r stan_fit_5_cohorts}
+coh <- "n5"
+nc  <- n_coh[[coh]]
+filename     <- str_glue("./Stan_files/Sens_analysis/5_cohorts.stan")
+
+o_SEIR <- write_SEIR_model(mtx, filename, output_gsi[[coh]]$stock_list, 
+                           params_prior, pop_size = pop_size, 
+                           "underreporting", n = nc)
+
+stan_d <- c(list(n_obs    = length_data,
+                 n_difeq  = length(output_gsi[[coh]]$stock_list), # number of differential equations
+                 t0       = 0,
+                 ts       = 1:length_data),
+                 n_params = (1 + nc) * (nc / 2),
+                 y_list)
+
+seed             <- 241364
+arg_list         <- arg_list_outline
+arg_list$data    <- stan_d
+arg_list$seed    <- seed
+arg_list$data$y0 <- o_SEIR$stock_inits
+
+var_cache            <- TRUE
+cache_file           <- str_glue("./object_fits/Stan/stan_fit_und_5n_{mtx}.rds")
+output               <- run_stan(filename, var_cache, cache_file, arg_list)
+coh_fit_list[[coh]]  <- output$stan_fit
+time_coh[[coh]]      <- output$time
+```
+
+```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
+                   text_size = 2, ypos_interval = 14,
+                   title = "Symmetric matrix", xlabel = "")
+
+
+sens_coh_summary[[coh]] <- summarise_results(coh_fit_list[[coh]],
+                                             cm_list[[coh]],
+                                             output_gsi[[coh]]$tidy_list$und, 
+                                             output_sp_list[[coh]]$population, 
+                                             specs_list, 
+                                             o_SEIR$params, 
+                                             output_sp_list[[coh]]$K_matrix,
+                                             scenario = "underreporting")
+
+pred_K <- sens_coh_summary[[coh]]$summary_k$g_k_hat + 
+  labs(subtitle = "Predicted K")
+
+grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2)
+```
+
+```{r fig.height = 2.5, fig.align = 'center'}
+sens_coh_summary[[coh]]$ts_summary$g_comparison
+```
+
+### 6 Cohorts
+
+```{r}
+coh <- "n6"
+nc  <- n_coh[[coh]]
+
+
+y_list        <- output_gsi[[coh]]$data_list$und
+names(y_list) <- paste0("y", 1:length(y_list))
+
+stan_d <- c(list(n_obs    = length_data,
+                 n_difeq  = length(output_gsi[[coh]]$stock_list), # number of differential equations
+                 t0       = 0,
+                 ts       = 1:length_data),
+                 n_params = (1 + nc) * (nc / 2),
+                 y_list)
+
+filename     <- str_glue("./Stan_files/Sens_analysis/{nc}_cohorts.stan")
+
+o_SEIR <- write_SEIR_model(mtx, filename, output_gsi[[coh]]$stock_list, 
+                                 params_prior, pop_size = pop_size, 
+                                 "underreporting", n = nc)
+
+seed             <- 102156
+arg_list         <- arg_list_outline
+arg_list$data    <- stan_d
+arg_list$seed    <- seed
+arg_list$data$y0 <- o_SEIR$stock_inits
+
+var_cache            <- TRUE
+cache_file           <- str_glue("./object_fits/Stan/stan_fit_und_{nc}n_{mtx}.rds")
+output               <- run_stan(filename, var_cache, cache_file, arg_list)
+coh_fit_list[[coh]]  <- output$stan_fit
+time_coh[[coh]]      <- output$time
+```
+
+```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
+                   text_size = 2, ypos_interval = 14,
+                   title = "Symmetric matrix", xlabel = "")
+
+
+sens_coh_summary[[coh]] <- summarise_results(coh_fit_list[[coh]],
+                                             cm_list[[coh]],
+                                             output_gsi[[coh]]$tidy_list$und, 
+                                             output_sp_list[[coh]]$population, 
+                                             specs_list, 
+                                             o_SEIR$params, 
+                                             output_sp_list[[coh]]$K_matrix,
+                                             scenario = "underreporting")
+
+pred_K <- sens_coh_summary[[coh]]$summary_k$g_k_hat + 
+  labs(subtitle = "Predicted K")
+
+grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2)
+```
+```{r fig.height = 2.5, fig.align = 'center'}
+sens_coh_summary[[coh]]$ts_summary$g_comparison
+```
+## Reporting value
+
+```{r}
+
+rv_stan  <- map_df(sens_coh_summary, function(sum_stan) {
+  rho_list <- sum_stan$rho_hat
+  
+  data.frame(y = rho_list$mean,
+             lower.bound = rho_list$lower_bound,
+             upper.bound = rho_list$upper_bound)
+}) %>% mutate(x = factor(case_names, levels = case_names))
+
+ggplot(rv_stan, aes(x = x, y = y)) +
+    geom_point() +
+    geom_errorbar(aes(ymin = lower.bound, ymax = upper.bound), width =.1) +
+    geom_hline(yintercept = reporting_fraction, linetype = "dashed") +
+    scale_y_continuous(limits = c(0.7, 0.9)) +
+    theme_pubr() +
+    theme(legend.text  = element_text(size = 3)) +
+    labs(x = "Scenario", y = "Reporting fraction",
+         title = "Reporting fraction by scenario")
+```
+## Estimated $R_0$
+
+```{r}
+R0_df <- map_df(sens_coh_summary, consolidate_R0) %>% 
+  mutate(x = factor(case_names, levels = case_names))
+
+ggplot(R0_df, aes(x = x, y = R0)) +
+  geom_point(size = 2, alpha = 0.5) +
+  geom_errorbar(aes(ymin = lower.bound, ymax = upper.bound), width =.1, 
+                alpha = 0.75) +
+  scale_y_continuous(limits = c(2.25, 2.38)) +
+  geom_point(data = actual_R0, colour = "red", alpha = 0.5, size = 2, 
+             shape = 4) +
+  theme_pubr() +
+  theme(legend.text  = element_text(size = 3)) +
+  labs(x = "Scenario", y = bquote(R[0]),
+       caption = "The cross indicates the actual value",
+       title = "Estimation per scenario")
+```
+
+
+## Time comparison
+
+```{r}
+times <- map_dbl(time_coh, calculate_time)
+
+time_df <- data.frame(x = n_coh, y = times)
+
+ggplot(time_df, aes(x = x, y = y)) +
+  geom_lollipop(colour = "steelblue") +
+  geom_line(colour = "grey30", alpha = 0.5, linetype = "dotted") +
+  scale_x_continuous(breaks = 4:6) +
+  theme_pubr() +
+  labs(x = "Number of cohorts",
+       y = "Time [Minutes]",
+       title = "Run time per scenario")
+```
+
 
 # Original Computing Environment
 
