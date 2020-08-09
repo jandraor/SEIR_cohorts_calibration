@@ -1,159 +1,164 @@
-summarise_results <- function(fit, conceptual_matrix, incidence_df, pop_sizes, 
-                              specs_list, unique_params, cumulative = FALSE,
-                              stochastic = FALSE) {
+summarise_results <- function(fit, conceptual_matrix, incidence_df, pop_df, 
+                              specs_list, unique_params, actual_K,
+                              scenario = "perfect information") {
   
-  age_groups <- c("00-04", "05-14", "15-44", "45+")
+  age_groups <- pop_df$group
   
-  posterior_df <- as.data.frame(fit)
+  posterior_df            <- as.data.frame(fit)
   samples                 <- rstan::extract(fit)
   param_samples           <- samples$params
   colnames(param_samples) <- unique_params
-  param_medians           <- apply(param_samples, 2, function(col) median(col))
   
+  rho_df <- NULL
   
-  WAIFW_medians <- sapply(
-    conceptual_matrix, function(Bij, row) row[[Bij]], row = param_medians) %>%
-    matrix(nrow = 4, byrow = T)
-  
-  normalised_WAIFW           <- WAIFW_medians
-  colnames(normalised_WAIFW) <- rownames(normalised_WAIFW) <- age_groups
-  
-  
-  interval_df <- map_df(conceptual_matrix, function(Bij, param_samples) {
-   
-    vals              <- param_samples[, Bij]
-    credible_interval <- rethinking::HPDI(vals, 0.95)
-    
-    data.frame(lower.interval = round(credible_interval[1], 0), 
-               upper.interval = round(credible_interval[2],0 ))
-   
-  }, param_samples = param_samples)
-  
-  g_WAIFW <- draw_WAIFW(normalised_WAIFW, "", interval_df)
-  
-  #=============================================================================
-  age_groups <- c("00-04", "05-14", "15-44", "45+")
-  translation_df <- data.frame(index_group = 1:4, 
-                               age_group = c("00-04", "05-14", "15-44", "45+"))
-  
-  if(cumulative == FALSE) {
-    sim_data <- extract_mean_incidences(posterior_df, stochastic)
+  if(scenario == "underreporting") {
+    rho_df <- as.data.frame(samples$rho)
+    colnames(rho_df) <- "rho"
   }
   
-  if(cumulative == TRUE) {
-    init_vals <- get_inits(fit)[[1]]$y0
-    
-    sim_data <- map2_df(age_groups, c(3, 7, 11, 15), function(ag, i) {
-      
-      infected_index  <- paste0(",", i,"]")
-      recovered_index <- paste0(",", i + 1,"]")
-      
-      col_means    <- posterior_df %>%
-        select(ends_with(infected_index), ends_with(recovered_index)) %>% 
-        colMeans()
-      
-      extracted_df <- str_extract_all(names(col_means), "\\d+") %>% 
-        map_df(function(extracted_obj) {
-          data.frame(stringsAsFactors = FALSE,
-                     time = extracted_obj[[1]], stock_id = extracted_obj[[2]])
-        })
-      
-      tbl_colmeans <- tibble(variable = names(col_means), value = col_means,
-                             time = extracted_df$time, 
-                             stock_id = extracted_df$stock_id)
-      
-      incidence_sim <- tbl_colmeans %>% group_by(time) %>% 
-        summarise(ever_infected = sum(value)) %>% ungroup() %>% 
-        mutate(time = as.numeric(time), age_group = ag)   %>% 
-        bind_rows(data.frame(stringsAsFactors = FALSE, 
-                             time = 0, ever_infected = init_vals[i], 
-                             age_group = ag)) %>% arrange(time) %>% 
-        mutate(value = ever_infected - lag(ever_infected, 
-                                           default = ever_infected[1])) %>% 
-        slice(-1) %>% mutate(value = round(value, 0)) %>% 
-        select(-ever_infected)
-    }) %>% mutate(source = "sim data")
-  }
+  summary_k <- summarise_k(param_samples, conceptual_matrix, age_groups,
+                           rho_df = rho_df, actual_K) 
   
+  sim_data     <- extract_incidences(posterior_df, age_groups)
+  real_data    <- incidence_df %>% mutate(source = "syn data") 
+  g_comparison <- g_compare_ts(sim_data, real_data, intervals = TRUE)
   
-  real_data <- incidence_df %>% rename(value = incidence) %>% 
-    mutate(source = "syn data") 
+  metrics <- accuracy_metrics(sim_data, real_data, age_groups)
   
-  if(!"age_group" %in% names(real_data)) {
-    real_data <- left_join(real_data, translation_df, by = "index_group")
-  }
+  ts_summary <- list(g_comparison = g_comparison,
+                     MSE          = metrics$avg_MSE,
+                     MASE         = metrics$avg_MASE)
   
-  comparison_data <- bind_rows(sim_data, real_data)
-  
-  g_comparison <- ggplot(comparison_data, aes(x = time, y = value)) +
-    geom_line(aes(group = source, colour = source)) +
-    scale_colour_manual(values = c("lightgrey", "blue")) +
-    facet_wrap(~ age_group) +
-    theme_test()
-  
-  #=============================================================================
-  MSE_per_ag <- map_dbl(age_groups, function(ag, comparison_data) {
-    
-    ag_data  <- comparison_data %>% filter(age_group == ag)
-    syn_data <- ag_data %>% filter(source == "syn data") %>% pull(value)
-    sim_data <- ag_data %>% filter(source == "sim data") %>% pull(value)
-    MSE(sim_data, syn_data)
-    
-  }, comparison_data = comparison_data)
-  #=============================================================================
- 
-  r_noughts <- sapply(1:nrow(param_samples), function(i) {
-    row <- param_samples[i, ]
-    WAIFW <- sapply(conceptual_matrix, 
-                    function(Bij, row) row[[Bij]], row = row) %>%
-      matrix(nrow = 4, byrow = TRUE)
-    next_gen_matrix <- WAIFW / 1e5 * pop_sizes * 2
-    eigensystem     <- eigen(next_gen_matrix)
-    max(abs(eigensystem$values))
-  })
-  
-  credible_interval <- HPDI(r_noughts, prob = 0.95)
-  
-  g_rNougths <- draw_density(r_noughts, specs_list)
+  R_0_obj <- posterior_R0(param_samples, conceptual_matrix, pop_df)
   
   output <- list(
-    g_WAIFW = g_WAIFW,
-    WAIFW = normalised_WAIFW,
-    g_comparison = g_comparison,
-    g_rNougths = g_rNougths,
-    mean_rNought = mean(r_noughts),
-    lower_bound  = credible_interval[[1]],
-    upper_bound  = credible_interval[[2]],
-    MSE = sum(MSE_per_ag))
+    summary_k    = summary_k,
+    ts_summary   = ts_summary,
+    R_0          = R_0_obj)
   
-  if("p" %in% colnames(posterior_df)) {
-    output$p_hat    <- mean(posterior_df$p)
-    bounds          <- rethinking::HPDI(posterior_df$p, 0.95)
-    output$p_hat_lb <- bounds[[1]] # lower bound
-    output$p_hat_ub <- bounds[[2]] # upper bound
+  if(scenario == "underreporting") {
+    
+    bounds  <- quantile(rho_df$rho, c(0.025, 0.975))
+    rho_lb  <- bounds[[1]] # lower bound
+    rho_ub  <- bounds[[2]] # upper bound
+    
+    rho_list <- list(mean        = mean(rho_df$rho) ,
+                     lower_bound = rho_lb,
+                     upper_bound = rho_ub)
+    
+    output$rho_hat <- rho_list
   }
   
   output
 }
 
-extract_mean_incidences <- function(posterior_df, stochastic = FALSE) {
-  age_groups <- c("00-04", "05-14", "15-44", "45+")
+extract_incidences <- function(posterior_df, age_groups) {
   
-  incidences      <- posterior_df %>% select(contains("incidence"))
+  incidence_sims <- imap_dfr(age_groups, function(ag, index, posterior_df) {
+    y_var <- str_glue("incidence{index}")
+    extract_timeseries_var(y_var, posterior_df) %>% 
+      mutate(cohort = ag) %>% 
+      dplyr::select(-variable)
+  }, posterior_df = posterior_df)
   
-  if(stochastic) {
-    p_values   <- posterior_df %>% pull(p)
-    incidences <- incidences * p_values 
-  }
+  sim_data <- incidence_sims %>% group_by(cohort, time) %>% 
+    summarise(lower_bound = quantile(value, c(0.025, 0.975))[[1]],
+              upper_bound = quantile(value, c(0.025, 0.975))[[2]],
+              y = mean(value),
+              .groups = "drop") %>% mutate(source = "sim data")
   
-  mean_incidences <- colMeans(incidences)
-  
-  names_mi <- names(mean_incidences)
-  
-  sim_data <- map_df(age_groups, function(ag) {
-    i <- which(ag == age_groups)
-    regex <- stringr::regex(paste0("incidence", i, "\\["))
-    data.frame(time = 1:50, value = mean_incidences[grepl(regex, names_mi)], 
-               age_group = ag, stringsAsFactors = F)
-  }) %>% mutate(source = "sim data")
+  sim_data
 }
+
+summarise_k <- function(param_samples, conceptual_matrix, age_groups,
+                        rho_df = NULL, actual_K) {
+  
+  param_means <- apply(param_samples, 2, function(col) mean(col))
+  
+  # Matrix K means
+  nc    <- length(age_groups)
+  k_hat       <- get_mean_k_hat(param_samples, conceptual_matrix, nc, 
+                                age_groups)
+  
+  interval_df <- get_k_intervals(param_samples, conceptual_matrix)
+  
+  g_k_hat <- draw_WAIFW(k_hat, "", interval_df, precision = 1)
+  
+  param_samples_df <- as.data.frame(param_samples)
+  
+  if(!is.null(rho_df)) {
+    param_samples_df <- bind_cols(param_samples_df, rho_df)
+  }
+  g_pairs          <- pairs_posterior(param_samples_df)
+  
+  MSE_k <- mse(k_hat, actual_K)
+  
+  list(k_hat   = k_hat,
+       MSE_k   = MSE_k,
+       g_k_hat = g_k_hat,
+       g_pairs = g_pairs)
+}
+
+posterior_R0 <- function(param_samples, conceptual_matrix, pop_df,
+                         tau_I = 2) {
+  
+  nc <- nrow(pop_df)
+  
+  r_noughts <- sapply(1:nrow(param_samples), function(i) {
+    row      <- param_samples[i, ]
+    
+    
+    k_matrix <- sapply(conceptual_matrix, 
+                    function(kij, row) row[[kij]], row = row) %>%
+      matrix(nrow = nc, byrow = TRUE)
+    
+    R0_from_K(k_matrix, pop_df, tau_I)
+  })
+  
+  credible_interval <- quantile(r_noughts, c(0.025, 0.975))
+  
+  g_rNougths <- draw_density(r_noughts, specs_list)
+  
+  list(g = g_rNougths,
+       mean        = mean(r_noughts),
+       lower_bound = credible_interval[[1]],
+       upper_bound = credible_interval[[2]])
+}
+
+consolidate_R0 <-function(smr_list) {
+  
+  data.frame(R0          = smr_list$R_0$mean, 
+             lower.bound = smr_list$R_0$lower_bound, 
+             upper.bound = smr_list$R_0$upper_bound)
+}
+
+extract_K_error <- function(smr_list) smr_list$summary_k$MSE_k
+
+get_mean_k_hat <- function(param_samples, cm, nc, age_groups) {
+  
+  param_means <- apply(param_samples, 2, function(col) mean(col))
+  
+  k_hat <- sapply(cm, function(kij, row) row[[kij]], row = param_means) %>%
+    matrix(nrow = nc, byrow = T)
+  
+  colnames(k_hat) <- rownames(k_hat) <- age_groups
+  
+  k_hat
+}
+
+get_k_intervals <- function(param_samples, conceptual_matrix) {
+  map_df(conceptual_matrix, function(kij, param_samples) {
+    
+    vals              <- param_samples[, kij]
+    credible_interval <- quantile(vals, c(0.025, 0.975))
+    
+    data.frame(lower.interval = round(credible_interval[1], 1), 
+               upper.interval = round(credible_interval[2], 1))
+    
+  }, param_samples = param_samples)
+}
+
+
+  
+
+

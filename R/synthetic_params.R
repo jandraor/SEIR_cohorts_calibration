@@ -1,4 +1,4 @@
-produce_synthetic_params <- function() {
+produce_synthetic_params <- function(pop_size, age_limits) {
   
   age_groups <- c("00-04", "05-14", "15-44", "45+")
   
@@ -19,28 +19,27 @@ produce_synthetic_params <- function() {
 
   
   # Contact matrix object
-  cm_object <- contact_matrix(polymod, age.limits = c(0, 5, 15, 45),
+  cm_object <- contact_matrix(polymod, age.limits = age_limits,
                               countries = "Finland",
                               survey.pop = "Finland",
                               symmetric = TRUE)
+  
+  # Synthetic population
+  agg_pop    <- cm_object$demography %>% 
+    rename(group = age.group) %>% 
+    mutate(group = format_age_group(as.character(group)),
+           population = round(pop_size * proportion, 0)) 
+  
+  age_groups <- agg_pop$group
   
   # Social contact matrix corrected for reciprocity
   corrected_M_matrix           <- cm_object$matrix %>% t()
   dimnames(corrected_M_matrix) <- list(age_groups, age_groups)
 
-  # Synthetic population
-  age_groups <- c("00-04", "05-14", "15-44", "45+")
-  agg_pop    <- cm_object$demography %>% 
-    rename(group = age.group) %>% 
-    mutate(group = age_groups) 
+
   
-  # Normalised matrix
+  # Normalised age-specific contact rate matrix
   symmetric_C_matrix <- corrected_M_matrix / agg_pop$proportion
-  
-  syn_pop_size         <- 1e4
-  synthetic_population <- agg_pop %>% 
-    mutate(syn_pop = round(syn_pop_size * proportion)) %>% 
-    select(group, syn_pop)
   
   g_c_M_matrix <- draw_WAIFW(corrected_M_matrix, "Aggregated contacts")
   
@@ -49,7 +48,9 @@ produce_synthetic_params <- function() {
   
   
   # Normalised age-specific effective contact rate
-  necr_matrix <- symmetric_C_matrix * infectivity
+  K_matrix <- symmetric_C_matrix * infectivity
+  
+  g_K_matrix <- draw_WAIFW(K_matrix, "K matrix", precision = 1)
   
   #=============================================================================
   # Theoretical R0
@@ -58,18 +59,40 @@ produce_synthetic_params <- function() {
   eigensystem            <- eigen(next_generation_matrix)
   theoretical_R0         <- max(Re(eigensystem$values))
   
-  syn_WAIFW <- necr_matrix / syn_pop_size 
+  syn_WAIFW <- K_matrix / pop_size
   
-  g_syn_WAIFW <- draw_WAIFW(syn_WAIFW * 1e5, "")
+  g_syn_WAIFW <- draw_WAIFW(syn_WAIFW, "WAIFW matrix", precision = 6)
   
   list(g_original_contacts = g_raw_M_matrix,
-       g_c_M_matrix = g_c_M_matrix,
-       synthetic_WAIFW = syn_WAIFW,
-       g_syn_WAIFW = g_syn_WAIFW,
-       syn_pop = synthetic_population,
-       theoretical_R0 = theoretical_R0)
+       g_c_M_matrix        = g_c_M_matrix,
+       synthetic_WAIFW     = syn_WAIFW,
+       g_syn_WAIFW         = g_syn_WAIFW,
+       population          = agg_pop,
+       theoretical_R0      = theoretical_R0,
+       K_matrix            = K_matrix,
+       g_K_matrix          = g_K_matrix)
 }
 
+format_age_group <- function(ag_vector) {
+  pattern <- regex("\\[(\\d+),(\\d+)\\)")
+  
+  new_ag_vector <- vector(length = length(ag_vector), mode = "character") 
+  
+  for(i in seq_along(ag_vector)) {
+    current_ag <- ag_vector[[i]]
+    
+    if(str_detect(current_ag, pattern)) {
+      output_sm   <- str_match(current_ag, pattern)
+      lower_bound <- output_sm[[2]] %>% str_pad(width = 2, pad = "0")
+      upper_bound <- (as.numeric(output_sm[[3]]) - 1) %>% 
+        str_pad(width = 2, pad = "0")
+      current_ag  <- paste(lower_bound, upper_bound, sep = "-")
+    }
+    
+    new_ag_vector[[i]] <- current_ag
+  }
+  new_ag_vector
+}
 
   
   

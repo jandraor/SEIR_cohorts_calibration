@@ -102,121 +102,6 @@ model {
   model
 }
 
-generate_stan_function <- function(model_type, params = NULL) {
-  stan_function <- NULL
-  
-  
-  if(model_type == "SIR") {
-  
-  SIR_fun <- "
-functions {
-  real[] SIR(real t,
-            real[] y, // stocks
-            real[] params,
-            real[] x_r,
-            int[] x_i) {
-              
-      real dydt[3];
-      real population;
-      real probability;
-      real contactsPerInfected;
-      real IR; // Infection rate
-      real RR; // Recovery rate
-      
-      population          = y[1] + y[2] + y[3];
-      probability         = y[1] / population;
-      contactsPerInfected = y[2] * params[1]; // effective contacts
-      
-      IR                  = contactsPerInfected * probability;
-      RR                  = y[2] * params[2]; // recovery proportion
-      
-      dydt[1] = -IR;
-      dydt[2] = IR - RR;
-      dydt[3] = RR;
-      
-      return dydt;
-    }
-}
-"
-    if(!is.null(params$recovery_delay)) {
-      SIR_fun <- SIR_fun %>% 
-        stringr::str_replace("params\\[2\\]", 
-                             as.character(params$recovery_delay)) 
-    }
-  
-   
-    
-  stan_function <- SIR_fun
-  }
-
-  if(model_type == "SEIR") {
-    SEIR_fun <- paste(
-      "functions {",
-      "  real[] SEIR(real t,",
-      "              real[] y, // stocks",
-      "              real[] params,",
-      "              real[] x_r,",
-      "              int[] x_i) {",
-      "  real dydt[4];",
-      "  real population;",
-      "  real probability;",
-      "  real contactsPerInfected;",
-      "  real IR; // Infection rate",
-      "  real InR; // Incidence rate",
-      "  real RR; // Recovery rate",
-      "  population = y[1] + y[2] + y[3] + y[4];",
-      "  probability = y[1] / population;",
-      "  contactsPerInfected = y[3] * params[1]; // effective contacts",
-      "  IR                  = contactsPerInfected * probability;",
-      "  InR                 = y[2] * params[2]; // latent period",
-      "  RR                  = y[3] * params[3]; // recovery delay",
-      "  dydt[1] = -IR;",
-      "  dydt[2] = IR - InR;",
-      "  dydt[3] = InR - RR;",
-      "  dydt[4] = RR;",
-      "  return dydt;",
-      "  }",
-      "}",
-      sep = "\n")
-    
-    params_modified <- 0;
-    
-    if(!is.null(params$effective_contacts)){
-      # Do something
-      params_modified <- params_modified + 1
-    }
-    
-    if(!is.null(params$latent_period)){
-      SEIR_fun <- SEIR_fun %>% 
-        stringr::str_replace("params\\[2\\]", 
-                             as.character(params$latent_period)) 
-    }
-    
-    if(is.null(params$latent_period) & params_modified > 0){
-      SEIR_fun <- SEIR_fun %>% 
-        stringr::str_replace("params\\[2\\]", "params\\[", 
-                             params_modified, "\\]") 
-    }
-    
-    if(!is.null(params$recovery_delay)){
-      SEIR_fun <- SEIR_fun %>% 
-        stringr::str_replace("params\\[3\\]", 
-                             as.character(params$recovery_delay)) 
-    }
-    
-    if(is.null(params$recovery_delay) & params_modified > 0){
-      SEIR_fun <- SEIR_fun %>% 
-        stringr::str_replace("params\\[2\\]", "params\\[", 
-                             params_modified, "\\]") 
-    }
-    
-    
-    stan_function <- SEIR_fun
-  }
-
-  stan_function
-}
-
 generate_transformed_parameters <- function(model_type, initValues) {
   
   if(model_type == "SIR") {
@@ -312,43 +197,64 @@ generate_data_block <- function(distribution) {
   stan_data
 }
 
-generate_transformed_data_block <- function() {
-  stan_transformed_data <- paste(
-    "transformed data {",
-    "  real x_r[0];",
-    "  int x_i[0];",
-    "}", sep = "\n")
-}
-
-generate_parameters_block <- function(distribution, stocks = NULL) {
-  stan_parameters <- NULL
-  stock_params    <- NULL
+get_stock_inits <- function(mdl, unknown = NA) {
+  stocks           <- mdl$deSolve_components$stocks
+  stan_init_stocks <- vector(mode = "character", length = length(stocks))
   
-  if(!is.null(stocks)) {
-    stock_params <- purrr::map_chr(stocks, function(stock) {
-      paste0("  real<lower = 0> ", stock,";")
-    }) %>% paste(collapse = "\n")
-  }
-  
-  if(distribution == "poisson") {
-    stan_parameters <- paste(
-      "parameters {",
-      "  real<lower = 0> params[n_params]; // Model parameters",
-      stock_params,
-      "}", sep = "\n")
-  }
-  
-  if(distribution == "normal") {
-    stan_parameters <- paste(
-      "parameters {",
-      "  real<lower = 0> params[n_params]; // Model parameters",
-      "  real<lower = 0> sigma;",
-      stock_params,
-      "}", sep = "\n")
+  for(i in seq_along(stocks)) {
+    stock      <- stocks[i]
+    stock_name <- names(stock)
     
+    stock_val  <- ifelse(stock_name %in% unknown, 
+                         paste0(stock_name, "0"), stocks[i])
+    
+    stan_init_stocks[[i]] <- str_glue("  y0[{i}] = {stock_val};")
   }
   
-  stan_parameters
+  stock_init_text <- paste(stan_init_stocks, collapse = "\n")
 }
 
+
+run_stan <- function(filename, var_cache, cache_file, arg_list) {
+  
+  
+  if(var_cache == FALSE) {
+    # # Test / debug the model:
+    # test <- stan(filename, data = arg_list$data, 
+    #              chains = 1, iter = 10,
+    #              verbose = TRUE, refresh = 0)
+    
+    set_cmdstan_path(file.path(Sys.getenv("HOME"), ".cmdstanr", 
+                               "cmdstan-2.24.0-rc1"))
+    mod <- cmdstan_model(filename)
+    #---------------------------------------------------------------------------
+    tic.clearlog()
+    tic()
+    # Fit and sample from the posterior
+    # arg_list$fit <- test
+    # stan_fit     <- do.call("stan", arg_list)
+    
+    fit <- mod$sample(data            = arg_list$data,
+                      seed            = arg_list$seed,
+                      chains          = arg_list$chains,
+                      parallel_chains = arg_list$cores,
+                      iter_warmup     = arg_list$warmup,
+                      iter_sampling   = arg_list$iter,
+                      refresh         = 5,
+                      save_warmup     = TRUE)
+  
+    
+    
+    toc(log = TRUE, quiet = FALSE)
+    log.lst <- tic.log(format = FALSE)
+    #---------------------------------------------------------------------------
+    stan_fit <- rstan::read_stan_csv(fit$output_files())
+    output <- list(stan_fit = stan_fit, time = log.lst)
+    saveRDS(output, cache_file)
+  } else {
+    output    <- readRDS(cache_file)
+  }
+  
+  output
+}
 

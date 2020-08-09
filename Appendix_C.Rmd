@@ -191,6 +191,10 @@ real_data    <- flu_data %>% filter(time != 0)
 g_ts <- g_compare_ts(sim_data, real_data, intervals = TRUE, 
                      xlabel = "Week number")
 
+real_data2 <- mutate(real_data, source = "syn data")
+
+metrics <- accuracy_metrics(sim_data, real_data2, age_groups)
+
 ggsave(file = "./plots/C_flu1957.pdf", g_ts, dpi = "print",
        height = 4, width = 6)
 ```

@@ -1,50 +1,84 @@
-generate_synthetic_incidence <- function(output_sp) {
+generate_synthetic_incidence <- function(output_sp, stop_time, 
+                                         reporting_fraction, seed) {
   
-  model_file <- "./deterministic_models/4_cohorts_SEIR_matrix_full.stmx"
-  model_structure <- read_xmile(model_file)
-  syn_WAIFW <- output_sp$synthetic_WAIFW * 1e5
-  constants <- names(model_structure$deSolve_components$consts)
+  pop_df    <- output_sp$population
+  n_cohorts <- nrow(pop_df)
+  K_matrix  <- output_sp$K_matrix
   
-  for(i in 1:nrow(syn_WAIFW)) {
+  
+  #-------------------------------------------------------------------------------
+  # Values of constants
+  #-------------------------------------------------------------------------------
+  
+  pad_width <- trunc(log(n_cohorts, base = 10)) + 1
+  
+  # number of separate elements
+  n_sep <- (1 + n_cohorts) * (n_cohorts / 2)
+  
+  k_params <- vector(mode = "list", length = n_sep)
+  k_names  <- vector(mode = "character", length = n_sep)  
+  
+  row_index <- 1
+  cnt       <- 1 # counter
+  
+  for(i in 1:n_cohorts) {
     
-    for(j in 1:ncol(syn_WAIFW)) {
-      param <- paste0("B", i, j)
-      pos   <- which(param == constants)
-      model_structure$deSolve_components$consts[[pos]] <- syn_WAIFW[i, j]
+    for(j in row_index:n_cohorts) {
+      k_params[[cnt]] <- K_matrix[[i, j]]
+      S               <- str_pad(i, width = pad_width, pad = "0")
+      I               <- str_pad(j, width = pad_width, pad = "0")
+      k_names[[cnt]]  <- str_glue("k{S}{I}")
+      cnt             <- cnt + 1
     }
+    
+    row_index <- row_index + 1
   }
   
-  pos_lp <- which("latent_period" == constants)
-  model_structure$deSolve_components$consts[[pos_lp]] <- 1
+  names(k_params) <- k_names
   
-  pos_rt <- which("recovery_time" == constants)
-  model_structure$deSolve_components$consts[[pos_rt]] <- 2
+  const_list      <- c(k_params, list(latent_period = 1,
+                                      recovery_time = 2,
+                                      population    = sum(pop_df$population)))
   
-  #-------------------------------------------------------------------------------
+  
+  #-----------------------------------------------------------------------------
   # Initial values of stocks
-  #-------------------------------------------------------------------------------
-  stock_names <- names(model_structure$deSolve_components$stocks)
+  #-----------------------------------------------------------------------------
+  stock_names <- paste0(c("S", "E", "I", "R", "C"), rep(1:n_cohorts, each = 5))
   
-  syn_pop <- output_sp$syn_pop %>% mutate(index = row_number(),
-                                          init_I = c(0, 0, 10, 0),
-                                          init_S = syn_pop - init_I)
-  for(i in 1:nrow(syn_pop)) {
-    row      <- syn_pop[i, ]
-    S_cohort <- paste0("S", row$index)
-    S_value  <- row$init_S
-    pos_S    <- which(S_cohort == stock_names)
-    model_structure$deSolve_components$stocks[pos_S] <- S_value
-    I_cohort <- paste0("I", row$index)
-    I_value  <- row$init_I
-    pos_I    <- which(I_cohort == stock_names)
-    model_structure$deSolve_components$stocks[pos_I] <- I_value
+  stock_matrix <- matrix(0, nrow = 1, ncol = length(stock_names))
+  stock_names  -> colnames(stock_matrix)
+  stock_df     <- as.data.frame(stock_matrix)
+  
+  infected_cohort <- 3
+  infected_value  <- 10
+  
+  for(i in seq_len(n_cohorts)) {
+    S_stock <- paste0("S", i)
+    S_val   <- pop_df[i, "population"]
+    
+    if(i == infected_cohort) {
+      I_stock <- paste0("I", i)
+      C_stock <- paste0("C", i)
+      stock_df[, I_stock] <- infected_value
+      stock_df[, C_stock] <- infected_value
+      S_val   <- S_val - infected_value
+    }
+    stock_df[, S_stock] <- S_val
   }
   
+  stock_list <- as.list(stock_df)
   
+  #-----------------------------------------------------------------------------
+  model_file      <- str_glue("./deterministic_models/{n_cohorts}_cohorts_SEIR_matrix_sym.stmx")
+  model_structure <- read_xmile(model_file, const_list = const_list,
+                                stock_list = stock_list)
+  
+
   # Create the start time, finish time, and time step
   START  <- 0
-  FINISH <- 50
-  STEP   <- 1 / 128
+  FINISH <- stop_time
+  STEP   <- 1 / 32
   
   # Create time vector
   simtime <- seq(START, FINISH, by = STEP )
@@ -55,54 +89,59 @@ generate_synthetic_incidence <- function(output_sp) {
                        parms = model_structure$deSolve_components$consts, 
                        method = "rk4"))
   
-  generate_incidence_df <- function(index, df) {
-    Infected  <- paste0("I", index)
-    Recovered <- paste0("R", index)
-    
-    incidence_data <- df %>% select(time, c(Infected, Recovered)) %>% 
-      rename(Infected := !!Infected, Recovered := !!Recovered) %>% 
-      filter(time - trunc(time) == 0) %>% 
-      mutate(everInfected = Infected + Recovered,
-             incidence = everInfected - lag(everInfected, 
-                                            default = everInfected[1]),
-             incidence = round(incidence)) %>% 
-      select(time, incidence) %>% 
-      filter(time != 0) %>% 
-      mutate(index_group = index)
-  }
+  cumulative_df <- o %>% dplyr::select(time, starts_with("C")) %>% 
+    filter(time - trunc(time) == 0)
   
-  generate_cml_incidence_df <- function(index, df) {
-    Infected  <- paste0("I", index)
-    Recovered <- paste0("R", index)
-    
-    incidence_data <- df %>% select(time, c(Infected, Recovered)) %>% 
-      rename(Infected := !!Infected, Recovered := !!Recovered) %>% 
-      filter(time - trunc(time) == 0) %>% 
-      mutate(cml_incidence = round(Infected + Recovered, 0)) %>% 
-      select(time, cml_incidence) %>% 
-      filter(time != 0) %>% 
-      mutate(index_group = index)
-  }
+  age_groups <- output_sp$population$group
   
-  incidence_df  <- map_df(1:4, generate_incidence_df, df = o)
+  incidence_df <- cumulative_df %>% pivot_longer(-time) %>% 
+    group_by(name) %>% 
+    mutate(y = round(value - lag(value), 0)) %>% ungroup() 
   
-  cumulative_df <- map_df(1:4, generate_cml_incidence_df , df = o)
+  incidence_df <- incidence_df %>%
+    mutate(index = as.numeric(str_replace(name, "C", "")),
+           cohort = cut(index, 
+                        breaks = length(age_groups), 
+                        labels = age_groups)) %>% 
+    dplyr::select(-name, -value) %>% filter(!is.na(y)) %>% 
+    mutate(Scenario = "Perfect information")
   
-  age_groups <- c("00-04", "05-14", "15-44", "45+")
-  names(age_groups) <- as.character(1:4)
+  data_prf <- incidence_df %>% dplyr::select(time, y, cohort) %>% 
+    pivot_wider(names_from = cohort, values_from = y) %>% 
+    dplyr::select(-time) %>% as.list()
   
-  g_incidences <- ggplot(incidence_df, aes(x = time, y = incidence)) +
-    geom_point(size = 0.5, shape = 1, colour = "#008080", fill = "#008080") +
-    geom_line(colour ="#008080", alpha = 0.5) +
-    facet_wrap(~index_group, ncol = 2, 
-               labeller = labeller(index_group = age_groups)) +
-    geom_vline(xintercept = 25, linetype = "dashed", alpha = 0.3) +
-    theme_test()
+  # Underreported data
+  set.seed(seed)
+  data_und <- lapply(data_prf, function(incidence_data) {
+    rbinom(length(incidence_data), incidence_data, 0.8)
+  })
   
-  list(incidence_df = incidence_df,
+  data_list <- list(prf = data_prf,
+                    und = data_und)
+  
+  und_incidence_df <- map2_df(data_und, as.factor(age_groups), make_df,
+                              stop_time = stop_time)
+  
+  tidy_list <- list(prf = incidence_df,
+                    und = und_incidence_df)
+  
+  g_incidences <- ggplot(incidence_df, aes(x = time, y = y)) +
+    geom_col(fill = "#008080") +
+    scale_y_continuous(labels = comma) +
+    facet_wrap(~cohort) +
+    labs(x = "Days", y = "Incidence [Cases / Day]") +
+    theme_pubr()
+  
+  list(tidy_list     = tidy_list,
+       data_list     = data_list,     
        cumulative_df = cumulative_df,
-       g_incidences = g_incidences,
-       constants    = constants,
-       stocks       = model_structure$deSolve_components$stocks)
+       g_incidences  = g_incidences,
+       const_list    = const_list,
+       stock_list    = stock_list)
+}
+
+make_df <- function(inc_data, ag, stop_time) {
+  tibble(time = 1:stop_time, y = inc_data, cohort = as.character(ag),
+         index = as.numeric(ag), Scenario = "Underreporting")
 }
 

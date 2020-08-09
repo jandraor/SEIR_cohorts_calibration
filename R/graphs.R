@@ -75,7 +75,7 @@ generate_graph_inputs <- function(stan_fit, x_pos, y_pos, y_pos_median,
 }
 
 draw_density <- function(data_vector, g_params) {
-  credible_interval <- HPDI(data_vector, prob = 0.95)
+  credible_interval <- quantile(data_vector, c(0.025, 0.975))
   mean_param        <- mean(data_vector)
   median_param      <- median(data_vector)
   
@@ -112,7 +112,8 @@ draw_density <- function(data_vector, g_params) {
     labs(x = g_params$xlabel, title = g_params$title)
 }
 
-draw_WAIFW <- function(WAIFW, subtitle, interval_df = NULL) {
+draw_WAIFW <- function(WAIFW, subtitle, interval_df = NULL,
+                       precision = 0) {
   library(reshape2)
 
   WAIFW_df <- WAIFW %>% t() %>% melt()
@@ -126,7 +127,8 @@ draw_WAIFW <- function(WAIFW, subtitle, interval_df = NULL) {
                               fill = value)) + 
     geom_tile() +
     scale_fill_gradient(low = "lightblue", high = "darkblue") +
-    geom_text(aes(label = round(value)), colour = "white", size = 2) +
+    geom_text(aes(label = round(value, precision)), colour = "white", 
+              size = 2) +
     theme_minimal() + 
     labs(y ="", x = "",subtitle = subtitle) +
     theme(legend.position = "none",
@@ -145,18 +147,25 @@ draw_WAIFW <- function(WAIFW, subtitle, interval_df = NULL) {
 
 draw_inits_comparison <- function(summaries_optim, actual_R0, inits) {
   
-  MSEs       <- map_dbl(summaries_optim, "MSE")
-  MSE_WAIFW  <- map_dbl(summaries_optim, "MSE_WAIFW")
+  MASEs <- purrr::map(summaries_optim, "metrics") %>% 
+    map_dbl("avg_MASE")
+  
+  MSEs <- purrr::map(summaries_optim, "metrics") %>% 
+    map_dbl("avg_MSE")
+  
+  MSE_K  <- map_dbl(summaries_optim, "MSE_K")
   MSE_R0     <- map_dbl(summaries_optim, function(summary, actual_R0) {
     MSE(actual_R0, summary$R_nought)
   }, actual_R0 = actual_R0) 
   
   df_params_list <- list(
-    list(label = "Timeseries",
+    list(label = "Timeseries (MASE)",
+         vals  = MASEs),
+    list(label = "Timeseries (MSE)",
          vals  = MSEs),
-    list(label = "WAIFW",
-         vals  = MSE_WAIFW),
-    list(label = "R0",
+    list(label = "K (MSE)",
+         vals  = MSE_K),
+    list(label = "R0 (MSE)",
          vals  = MSE_R0))
   
   MSEs_df <- map_df(df_params_list, function(df_params, inits) {
@@ -167,14 +176,15 @@ draw_inits_comparison <- function(summaries_optim, actual_R0, inits) {
              variable = df_params$label)
   }, inits = inits)
   
-  g_MSEs <- ggplot(MSEs_df, aes(x = as.factor(init), y = MSE)) +
+  ggplot(MSEs_df, aes(x = as.factor(init), y = MSE)) +
     facet_wrap(~ variable, scales = "free", nrow = 1) +
     coord_flip() +
     geom_lollipop(aes(colour = is_Min)) +
     scale_colour_manual(values = c("grey", "steelblue")) +
     theme_minimal() +
     theme(legend.position = "none") +
-    labs(x = "Init values")
+    labs(x = "Init id",
+         y = "Error") 
 }
 
 # Draw distance comparison graph
@@ -190,5 +200,91 @@ draw_dcg <- function(df, limits, actual_val) {
     theme(legend.text  = element_text(size = 3)) +
     labs(x = "Structure", y = "Reporting probability")
 }
+
+# Compare time-series to data points
+
+g_compare_ts <- function(sim_data, real_data, intervals = TRUE,
+                         scales = "fixed", xlabel = "Days") {
+  g <- ggplot(sim_data, aes(x = time, y = y)) +
+    geom_line(colour = "steelblue", alpha = 0.9, size = 0.25) +
+    geom_point(data = real_data, size = 0.5, colour = "grey30",
+               alpha = 0.8) +
+    scale_y_continuous(labels = comma) +
+    facet_wrap(~ cohort, scales = scales) 
+  
+  if(isTRUE(intervals)) {
+    g <- g + geom_ribbon(aes(ymin = lower_bound, ymax = upper_bound),
+                         alpha = 0.5, fill = "steelblue")
+  }
+  
+  g <- g + 
+    labs(x = xlabel, y = "Incidence") +
+    theme_pubr()
+  
+  g
+}
+
+# ===================Pairs======================================================
+
+dens_fn <- function(data, mapping, ...){
+  p <- ggplot(data = data, mapping = mapping) + 
+    stat_density2d(aes(fill=..density..), geom = "tile", contour = FALSE) +
+    scale_fill_viridis_c()
+  p
+}
+
+cor_fun <- function(data, mapping, method = "pearson", ndp = 2, sz=5, 
+                    stars=TRUE, ...){
+  
+  x <- eval_data_col(data, mapping$x)
+  y <- eval_data_col(data, mapping$y)
+  
+  corr <- cor.test(x, y, method=method)
+  est <- corr$estimate
+  lb.size <- sz* abs(est) 
+  
+  palette <- gradient_n_pal(c("lightgrey", "black"))
+  
+  if(stars){
+    stars <- c("***", "**", "*", "")[findInterval(corr$p.value, 
+                                                  c(0, 0.001, 0.01, 0.05, 1))]
+    
+    lbl  <- paste0(round(est, ndp), stars)
+    cor_colour <-  palette(abs(est))
+  }else{
+    lbl <- round(est, ndp)
+  }
+  
+  ggplot(data = data, mapping = mapping) + 
+    annotate("text", x = mean(x, na.rm = TRUE), y = mean(y, na.rm=TRUE), 
+             label=lbl, size = 3, colour = cor_colour,...)+
+    theme(panel.grid = element_blank())
+}
+
+pairs_posterior <- function(posterior, strip_text = 3) {
+  ggpairs(posterior, lower = list(continuous = dens_fn),
+          upper = list(continuous = cor_fun)) +
+    theme_pubr() +
+    theme(axis.text = element_text(size = 4),
+          strip.text = element_text(size = strip_text))
+}
+
+#===============================================================================
+
+g_time_comparison <- function(t_df) {
+  ggplot(t_df, aes(x = matrix, y = time)) +
+    geom_lollipop(colour = "steelblue") +
+    scale_y_continuous() +
+    coord_flip() +
+    geom_text(aes(label = round(time, 0)), nudge_y = 10, size = 3) +
+    scale_colour_manual(values = c("grey", "steelblue")) +
+    facet_grid(scenario ~ method) +
+    theme_test() +
+    theme(legend.position = "none") +
+    labs(x = "Structure", y = "Time [Minutes]",
+         title = "Run time")
+}
+
+
 
 
