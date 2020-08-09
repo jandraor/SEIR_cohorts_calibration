@@ -1,0 +1,225 @@
+---
+title: "Appendix C"
+output:
+  pdf_document: 
+    number_sections: true
+  html_notebook: default
+header-includes:
+  - \usepackage{booktabs}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+## WORKAROUND: https://github.com/rstudio/rstudio/issues/6692
+## Revert to 'sequential' setup of PSOCK cluster in RStudio Console on macOS and R 4.0.0
+if (Sys.getenv("RSTUDIO") == "1" && !nzchar(Sys.getenv("RSTUDIO_TERM")) && 
+    Sys.info()["sysname"] == "Darwin" && getRversion() == "4.0.0") {
+  parallel:::setDefaultClusterOptions(setup_strategy = "sequential")
+}
+
+library(bayesplot)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(lubridate)
+library(purrr)
+library(readr)
+library(readsdr)
+library(scales)
+library(stringr)
+library(tidyr)
+```
+
+# Data
+
+```{r}
+raw_data <- read_csv("./data/flu_data_1957.csv") %>% 
+  mutate(time = row_number() - 1,
+         week = dmy(week))
+
+n_weeks <- nrow(raw_data)
+
+# First week correspond to initial values
+length_data <- n_weeks - 1
+
+flu_data <- raw_data %>% pivot_longer(c(-week, - time), 
+                                      names_to = "cohort",
+                                      values_to = "y")
+
+age_groups <- unique(flu_data$cohort)
+
+pop_df <- data.frame(age_group  = age_groups,
+                     population = c(949, 1690, 3467, 1894)) %>% 
+  mutate(proportion = population / sum(population))
+
+ggplot(flu_data, aes(x = week, y = y)) +
+  geom_col(fill = "steelblue") +
+  facet_wrap(~ cohort) +
+  theme_pubr() +
+  labs(y = "Incidence")
+```
+
+# Calibration
+
+## Biological parameters
+
+* $\sigma = 1$ days
+* $\gamma = 2$ days
+
+## Priors
+
+$k_{ij} \sim normal(0, 10)$
+$\rho \sim normal(0.5, 0.5)$
+
+## HMC
+
+```{r}
+mdl_file <- "./deterministic_models/4_cohorts_SEIR_matrix_sym.stmx"
+
+n_cohorts <- 4
+
+stock_names  <- paste0(c("S", "E", "I", "R", "C"), rep(1:n_cohorts, each = 5))
+stock_matrix <- matrix(0, nrow = 1, ncol = length(stock_names))
+stock_names  -> colnames(stock_matrix)
+stock_df     <- as.data.frame(stock_matrix)
+
+infected_cohorts <- 3:4
+infected_value   <- 1
+
+for(i in seq_len(n_cohorts)) {
+  S_stock <- paste0("S", i)
+  S_val   <- pop_df[i, "population"]
+  
+  if(i %in% infected_cohorts) {
+    I_stock <- paste0("I", i)
+    C_stock <- paste0("C", i)
+    stock_df[, I_stock] <- infected_value
+    stock_df[, C_stock] <- infected_value
+    S_val   <- S_val - infected_value
+  }
+  stock_df[, S_stock] <- S_val
+}
+
+pop_size   <- sum(pop_df$population)
+stock_list <- as.list(stock_df)
+const_list <- list(recovery_time = 1.5 / 7,
+                   latent_period = 1.5 / 7,
+                   population    = pop_size)
+
+mdl <- read_xmile(mdl_file, stock_list, const_list)
+
+start_time <- 0
+stop_time  <- n_weeks - 1
+```
+
+```{r}
+source("./R/stan_utils.R")
+source("./R/write_SEIR_model.R")
+
+filename <- "./Stan_files/flu_example/flu.stan"
+
+params_prior <- c("  params ~ normal(0, 10)", 
+                  "  rho    ~ normal(0.5, 0.5)")
+
+nc <- 4
+o_SEIR <- write_SEIR_model("sym", filename, stock_list, params_prior,
+                           pop_size, scenario = "underreporting",
+                           nc = nc, recovery_time = 1.5 /7,
+                           latent_period = 1.5 / 7)
+
+wide_flu_data <- raw_data[-1, ]
+
+stan_d <- list(n_obs    = length_data,
+               n_difeq  = length(stock_list), # number of differential equations
+               t0       = 0,
+               ts       = 1:length_data,
+               n_params = (1 + nc) * (nc / 2),
+               y1       = pull(wide_flu_data, `00-04`),
+               y2       = pull(wide_flu_data, `05-14`),
+               y3       = pull(wide_flu_data, `15-44`),
+               y4       = pull(wide_flu_data, `45+`))
+
+arg_list <- list(data   = NULL, 
+                 chains = 4,
+                 warmup = 1000, 
+                 iter   = 1000, 
+                 cores  = 4,
+                 seed   = 97268, 
+                 refresh = 5)
+
+arg_list$data    <- stan_d
+arg_list$data$y0 <- o_SEIR$stock_inits
+
+var_cache            <- TRUE
+cache_file           <- str_glue("./object_fits/Stan/flu57.rds")
+output               <- run_stan(filename, var_cache, cache_file, arg_list)
+flu_fit              <- output$stan_fit
+```
+
+# Trace plots
+
+```{r}
+indexes <- str_replace(o_SEIR$params, "k", "")
+
+params_translation <- data.frame(
+  original = str_glue("params[{1:10}]"),
+  new      = str_glue("kappa[{indexes}]"))
+
+color_scheme_set("purple")
+posterior  <- rstan::extract(flu_fit, inc_warmup = TRUE, permuted = FALSE)
+post_names <- dimnames(posterior)[[3]]
+
+post_names[match(params_translation$original, post_names)] <- params_translation$new
+dimnames(posterior)[[3]] <- post_names
+
+mcmc_trace(posterior, pars = c("rho", params_translation$new),
+           facet_args = list(labeller = label_parsed),
+           n_warmup = 1000) +
+  theme_minimal()
+```
+
+
+```{r}
+source("./R/summarise_results.R")
+source("./R/graphs.R")
+posterior_df <- as.data.frame(flu_fit)
+sim_data     <- extract_incidences(posterior_df, age_groups)
+
+real_data    <- flu_data %>% filter(time != 0)
+
+g_ts <- g_compare_ts(sim_data, real_data, intervals = TRUE, 
+                     xlabel = "Week number")
+
+ggsave(file = "./plots/C_flu1957.pdf", g_ts, dpi = "print",
+       height = 4, width = 6)
+```
+
+```{r}
+source("./R/matrix_utils.R")
+source('./R/summaries_utils.R')
+cm                      <- get_cm_sym(4)
+samples                 <- rstan::extract(flu_fit)
+param_samples           <- samples$params
+colnames(param_samples) <- o_SEIR$params
+
+k_hat  <- get_mean_k_hat(param_samples, cm, nc, age_groups)
+int_df <- get_k_intervals(param_samples, cm)
+
+draw_WAIFW(k_hat, "Weekly rates", int_df, precision = 1)
+```
+
+```{r}
+specs_list <- list(x_pos = 2.04, ypos_mean = 17, ypos_median = 16,
+                   text_size = 2, ypos_interval = 15,
+                   title = "Symmetric matrix", xlabel = "")
+
+R_0_obj <- posterior_R0(param_samples, cm, pop_df, tau_I = 1.5 / 7)
+
+R_0_obj$g
+```
+
+
+
+
+
