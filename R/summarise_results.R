@@ -94,10 +94,10 @@ summarise_k <- function(param_samples, conceptual_matrix, age_groups,
   }
   g_pairs          <- pairs_posterior(param_samples_df)
   
-  MSE_k <- mse(k_hat, actual_K)
+  SMAPE_k <- smape(k_hat, actual_K)
   
   list(k_hat   = k_hat,
-       MSE_k   = MSE_k,
+       SMAPE_k = SMAPE_k,
        g_k_hat = g_k_hat,
        g_pairs = g_pairs)
 }
@@ -135,7 +135,7 @@ consolidate_R0 <-function(smr_list) {
              upper.bound = smr_list$R_0$upper_bound)
 }
 
-extract_K_error <- function(smr_list) smr_list$summary_k$MSE_k
+extract_K_error <- function(smr_list) smr_list$summary_k$SMAPE_k
 
 get_mean_k_hat <- function(param_samples, cm, nc, age_groups) {
   

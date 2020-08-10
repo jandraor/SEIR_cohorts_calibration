@@ -192,26 +192,26 @@ ts_errors <- function(summaries_optim, inits) {
 
 draw_inits_comparison <- function(summaries_optim, actual_R0, inits) {
   
-  MSE_K  <- map_dbl(summaries_optim, "MSE_K")
+  SMAPE_K    <- map_dbl(summaries_optim, "SMAPE_K")
   MSE_R0     <- map_dbl(summaries_optim, function(summary, actual_R0) {
     MSE(actual_R0, summary$R_nought)
   }, actual_R0 = actual_R0) 
   
   df_params_list <- list(
-    list(label = "K (MSE)",
-         vals  = MSE_K),
+    list(label = "K (SMAPE)",
+         vals  = SMAPE_K),
     list(label = "R0 (MSE)",
          vals  = MSE_R0))
   
   MSEs_df <- map_df(df_params_list, function(df_params, inits) {
     var_min <- min(df_params$vals)
     
-    tibble(init = inits, MSE = df_params$vals) %>% 
-      mutate(is_Min = MSE == var_min,
+    tibble(init = inits, value = df_params$vals) %>% 
+      mutate(is_Min = value == var_min,
              variable = df_params$label)
   }, inits = inits)
   
-  ggplot(MSEs_df, aes(x = as.factor(init), y = MSE)) +
+  ggplot(MSEs_df, aes(x = as.factor(init), y = value)) +
     facet_wrap(~ variable, scales = "free", nrow = 1) +
     coord_flip() +
     geom_lollipop(aes(colour = is_Min)) +
@@ -220,8 +220,6 @@ draw_inits_comparison <- function(summaries_optim, actual_R0, inits) {
     theme(legend.position = "none") +
     labs(x = "Init id",
          y = "Error") 
-  
-
 }
 
 # Draw distance comparison graph

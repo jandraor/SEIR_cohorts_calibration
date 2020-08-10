@@ -90,7 +90,7 @@ summarise_optim_fit <- function(
     g_comparison = g_comparison,
     K_hat        = K_analysis$K_hat,
     g_K_hat      = K_analysis$g_K_hat,
-    MSE_K        = K_analysis$MSE_K,
+    SMAPE_K      = K_analysis$SMAPE_K,
     metrics      = metrics,
     R_nought     = K_analysis$R_nought)
   
@@ -112,7 +112,7 @@ run_K_analysis <- function(optim_fit, conceptual_matrix, age_groups,
   
   colnames(K_hat) <- rownames(K_hat) <- age_groups
   
-  MSE_K <- MSE(as.vector(K_hat), actual_K)
+  SMAPE_K <- smape(as.vector(K_hat), actual_K)
   
   g_K_hat <- draw_WAIFW(K_hat, plot_title, precision = 2)
   
@@ -121,7 +121,7 @@ run_K_analysis <- function(optim_fit, conceptual_matrix, age_groups,
   list(R_nought        = R_nought,
        K_hat           = K_hat,
        g_K_hat         = g_K_hat,
-       MSE_K           = MSE_K)
+       SMAPE_K         = SMAPE_K)
 }
 
 find_best_fits <- function(summaries, n_inits) {

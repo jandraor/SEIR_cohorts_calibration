@@ -1973,30 +1973,30 @@ ggsave("./plots/R0comparison.pdf", dpi = "print", height = 5,
 
 \newpage
 
-## MSE in WAIFW's
+## SMAPE in WAIFW's
 
 ```{r}
-MSEs             <- map_dbl(summary_stan, extract_K_error) 
-K_error_stan_prf <-data.frame(matrix     = m_index,
-                                MSE      = MSEs,
-                                method   = "HMC",
-                                scenario = "Perfect information")
+SMAPEs           <- map_dbl(summary_stan, extract_K_error) 
+K_error_stan_prf <-data.frame(matrix   = m_index,
+                              SMAPE    = SMAPEs,
+                              method   = "HMC",
+                              scenario = "Perfect information")
 
-MSEs             <- map_dbl(summary_stan_und, extract_K_error)
+SMAPEs           <- map_dbl(summary_stan_und, extract_K_error)
 K_error_stan_und <- data.frame(matrix   = m_index,
-                                MSE      = MSEs,
-                                method   = "HMC",
+                               SMAPE    = SMAPEs,
+                               method   = "HMC",
                                 scenario = "Underreporting")
 
-MSEs              <- map_dbl(summary_optim, "MSE_K")
+SMAPEs              <- map_dbl(summary_optim, "SMAPE_K")
 K_error_optim_prf <- data.frame(matrix   = m_index,
-                                MSE      = MSEs,
+                                SMAPE    = SMAPEs,
                                 method   = "NMS",
                                 scenario = "Perfect information")
 
-MSEs              <- map_dbl(summary_und_optim, "MSE_K")
+SMAPEs            <- map_dbl(summary_und_optim, "SMAPE_K")
 K_error_optim_und <- data.frame(matrix   = m_index,
-                                MSE      = MSEs,
+                                SMAPE    = SMAPEs,
                                 method   = "NMS",
                                 scenario = "Underreporting")
 
@@ -2004,15 +2004,15 @@ K_error_list <- list(K_error_stan_prf, K_error_stan_und,
                      K_error_optim_prf, K_error_optim_und)
 
 K_error_df <- map_df(K_error_list, function(df) {
-  min_MSE <- min(df$MSE)
-  df %>% mutate(is_min = MSE == min_MSE)
+  min_SMAPE <- min(df$SMAPE)
+  df %>% mutate(is_min = SMAPE == min_SMAPE)
 })
 
-ggplot(K_error_df, aes(x = matrix, y = MSE)) +
+ggplot(K_error_df, aes(x = matrix, y = SMAPE)) +
   geom_lollipop(aes(colour = is_min)) +
   scale_y_continuous(limits = c(0, 10)) +
   coord_flip() +
-  geom_text(aes(label = round(MSE, 2),
+  geom_text(aes(label = round(SMAPE, 2),
                 colour = is_min), nudge_y = 1, size = 3) +
   scale_colour_manual(values = c("grey", "steelblue")) +
   facet_grid(scenario ~ method) +
