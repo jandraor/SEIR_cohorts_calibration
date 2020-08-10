@@ -145,13 +145,52 @@ draw_WAIFW <- function(WAIFW, subtitle, interval_df = NULL,
   g
 }
 
+ts_errors <- function(summaries_optim, inits) {
+  metrics_list <- purrr::map(summaries_optim, "metrics")
+  
+  MASEs    <- metrics_list %>% map_dbl("avg_MASE")
+  MSEs     <- metrics_list %>% map_dbl("avg_MSE")
+  log_liks <- metrics_list %>% map_dbl("log_lik")
+  
+  df_params_list <- list(
+    list(label = "MASE",
+         vals  = MASEs),
+    list(label = "MSE",
+         vals  = MSEs),
+    list(label = "Log lik",
+         vals  = log_liks))
+  
+  metric_df <- map_df(df_params_list, function(df_params, inits) {
+    
+    if(df_params$label != "Log lik") var_best <- min(df_params$vals)
+    
+    if(df_params$label == "Log lik") var_best <- max(df_params$vals)
+    
+    
+    
+    tibble(init = inits, value = df_params$vals) %>% 
+      mutate(is_Best = value == var_best,
+             metric = df_params$label)
+  }, inits = inits)
+  
+  MASE_df <- metric_df %>% filter(metric == "MASE") %>% 
+    arrange(desc(value))
+  
+  metric_df <- mutate(metric_df, init = factor(init, levels = MASE_df$init))
+  
+  ggplot(metric_df, aes(x = init, y = value)) +
+    facet_wrap(~ metric, scales = "free", nrow = 1) +
+    coord_flip() +
+    geom_lollipop(aes(colour = is_Best)) +
+    scale_colour_manual(values = c("grey", "steelblue")) +
+    theme_minimal() +
+    theme(legend.position = "none") +
+    labs(x = "Init id",
+         y = "Value",
+         title = "Predicted incidence accuracy") 
+}
+
 draw_inits_comparison <- function(summaries_optim, actual_R0, inits) {
-  
-  MASEs <- purrr::map(summaries_optim, "metrics") %>% 
-    map_dbl("avg_MASE")
-  
-  MSEs <- purrr::map(summaries_optim, "metrics") %>% 
-    map_dbl("avg_MSE")
   
   MSE_K  <- map_dbl(summaries_optim, "MSE_K")
   MSE_R0     <- map_dbl(summaries_optim, function(summary, actual_R0) {
@@ -159,10 +198,6 @@ draw_inits_comparison <- function(summaries_optim, actual_R0, inits) {
   }, actual_R0 = actual_R0) 
   
   df_params_list <- list(
-    list(label = "Timeseries (MASE)",
-         vals  = MASEs),
-    list(label = "Timeseries (MSE)",
-         vals  = MSEs),
     list(label = "K (MSE)",
          vals  = MSE_K),
     list(label = "R0 (MSE)",
@@ -185,6 +220,8 @@ draw_inits_comparison <- function(summaries_optim, actual_R0, inits) {
     theme(legend.position = "none") +
     labs(x = "Init id",
          y = "Error") 
+  
+
 }
 
 # Draw distance comparison graph

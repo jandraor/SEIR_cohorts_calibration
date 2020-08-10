@@ -92,13 +92,8 @@ data {
   real ts[n_obs]; // Time points that were sampled
   vector[n_difeq] y0;
 }
-transformed data {
-  real x_r[0];
-  int  x_i[0];
-}
 parameters {
   real<lower = 0> params[n_params]; // Model parameters
-
 }
 transformed parameters{
   vector[n_difeq] y_hat[n_obs]; // Output from the ODE solver
@@ -115,7 +110,7 @@ transformed parameters{
     incidence1[i + 1] = y_hat[i + 1, 17] - y_hat[i, 17] + 0.00001;
     incidence2[i + 1] = y_hat[i + 1, 18] - y_hat[i, 18] + 0.00001;
     incidence3[i + 1] = y_hat[i + 1, 19] - y_hat[i, 19] + 0.00001;
-    incidence4[i + 1] = y_hat[i + 1, 20] - y_hat[i, 20] + 0.00001;;
+    incidence4[i + 1] = y_hat[i + 1, 20] - y_hat[i, 20] + 0.00001;
    }
 }
 model {
@@ -124,4 +119,8 @@ model {
     y2     ~ poisson(incidence2);
     y3     ~ poisson(incidence3);
     y4     ~ poisson(incidence4);
+}
+generated quantities {
+  real log_lik;
+  log_lik = poisson_lpmf(y1 | incidence1) + poisson_lpmf(y2 | incidence2) + poisson_lpmf(y3 | incidence3) + poisson_lpmf(y4 | incidence4);
 }

@@ -166,37 +166,6 @@ generate_model_text <- function(model_lines) {
     "}", sep = "\n")
 }
 
-generate_data_block <- function(distribution) {
-  stan_data <- NULL
-  
-  if(distribution == "poisson") {
-    
-    stan_data <- paste(
-      "data {",
-      "  int<lower = 1> n_obs; // Number of weeks sampled",
-      "  int<lower = 1> n_params; // Number of model parameters",
-      "  int<lower = 1> n_difeq; // Number of differential equations in the system",
-      "  int y[n_obs];",
-      "  real t0; // Initial time point (zero)",
-      "  real ts[n_obs]; // Time points that were sampled",
-      "}", sep = "\n")
-  }
-  
-  if(distribution == "normal") {
-    stan_data <- paste(
-      "data {",
-      "  int<lower = 1> n_obs; // Number of weeks sampled",
-      "  int<lower = 1> n_params; // Number of model parameters",
-      "  int<lower = 1> n_difeq; // Number of differential equations in the system",
-      "  real y[n_obs]; ",
-      "  real t0; // Initial time point (zero)",
-      "  real ts[n_obs]; // Time points that were sampled",
-      "}", sep = "\n") 
-  }
-  
-  stan_data
-}
-
 get_stock_inits <- function(mdl, unknown = NA) {
   stocks           <- mdl$deSolve_components$stocks
   stan_init_stocks <- vector(mode = "character", length = length(stocks))

@@ -42,8 +42,11 @@ write_SEIR_model <- function(matrix_type, filename, stock_list, params_prior,
   stan_model_text <- c(params_prior, likelihood)
   stan_model  <- generate_model_text(stan_model_text)
   
+  stan_gc <- get_stan_gc(nc)
+
   stan_text   <- paste(stan_fun, stan_data, stan_params,
-                       stan_tp, stan_model, sep = "\n")
+                       stan_tp, stan_model, stan_gc,
+                       sep = "\n")
   
   create_stan_file(stan_text, filename)
   
@@ -133,3 +136,22 @@ stan_data_block <- function(n_datasets) {
     "  vector[n_difeq] y0;",
     "}", sep = "\n")
 }
+
+get_stan_gc <- function(nc) {
+  
+  pois_lik_list <- str_glue("poisson_lpmf(y{1:nc} | incidence{1:nc})")
+  
+  rhs <- paste(pois_lik_list, collapse = " + ")
+  
+  lhs <- "  log_lik"
+  
+  log_lik_line <- str_glue("{lhs} = {rhs};")
+  
+  paste(
+  "generated quantities {",
+  "  real log_lik;",
+  log_lik_line,
+  "}", sep = "\n")
+}
+
+

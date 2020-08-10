@@ -23,7 +23,8 @@ summarise_optim_fit <- function(
     
   
   #=============================================================================
-  metrics <- accuracy_metrics(sym_df, actual_df, age_groups)
+  metrics         <- accuracy_metrics(sym_df, actual_df, age_groups)
+  metrics$log_lik <- optim_fit$fit$value * -1 # because of optim minimisation
   #=============================================================================
   rounded_R0 <- round(R_nought, 2)
   
@@ -121,4 +122,18 @@ run_K_analysis <- function(optim_fit, conceptual_matrix, age_groups,
        K_hat           = K_hat,
        g_K_hat         = g_K_hat,
        MSE_K           = MSE_K)
+}
+
+find_best_fits <- function(summaries, n_inits) {
+  
+  vals   <- purrr::map(summaries, "metrics") %>% 
+    map_dbl("log_lik")
+  
+  names(vals)   <- 1:n_inits
+  sorted_vals          <- sort(vals, decreasing = TRUE)
+  top_6                <- sorted_vals[1:6]
+  top_id               <- which(vals %in% top_6)
+  
+  list(top_id       = top_id,
+       pos_best_fit = which.max(vals))
 }

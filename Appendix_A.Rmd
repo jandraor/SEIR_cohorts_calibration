@@ -301,24 +301,27 @@ summaries_optim_A <- map2(
   pop_df = output_sp$population, actual_K = actual_K,
   g_options)
 
-MASEs <- purrr::map(summaries_optim_A, "metrics") %>% 
-  map_dbl("avg_MASE")
-
-names(MASEs)         <- 1:n_inits
-sorted_MASEs         <- sort(MASEs)
-top_6                <- sorted_MASEs[1:6]
-top_id               <- which(MASEs %in% top_6)
+bf_search            <- find_best_fits(summaries_optim_A, n_inits)
+top_id               <- bf_search$top_id
 top_optim_A          <- summaries_optim_A[top_id]
-summary_optim[[mtx]] <- summaries_optim_A[[which.min(MASEs)]]
+summary_optim[[mtx]] <- summaries_optim_A[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_A, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 ```
 
-```{r}
+```{r, fig.height = 7}
 K_matrix <- purrr::map(top_optim_A , "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+\newpage
+
+```{r}
+g_ts_errors <- ts_errors(top_optim_A, top_id)
+print(g_ts_errors)
+```
+
+
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_A, output_sp$theoretical_R0, 
@@ -366,15 +369,10 @@ summaries_optim_B <- map2(
   pop_df = output_sp$population, actual_K = actual_K,
   g_options)
 
-MASEs <- purrr::map(summaries_optim_B, "metrics") %>% 
-  map_dbl("avg_MASE")
-
-names(MASEs)         <- 1:n_inits
-sorted_MASEs         <- sort(MASEs)
-top_6                <- sorted_MASEs[1:6]
-top_id               <- which(MASEs %in% top_6)
+bf_search            <- find_best_fits(summaries_optim_B, n_inits)
+top_id               <- bf_search$top_id
 top_optim_B          <- summaries_optim_B[top_id]
-summary_optim[[mtx]] <- summaries_optim_B[[which.min(MASEs)]]
+summary_optim[[mtx]] <- summaries_optim_B[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_B, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
@@ -384,6 +382,12 @@ do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 K_matrix <- purrr::map(top_optim_B , "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+```{r}
+g_ts_errors <- ts_errors(top_optim_B, top_id)
+print(g_ts_errors)
+```
+
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_B, output_sp$theoretical_R0, 
@@ -429,15 +433,10 @@ summaries_optim_C <- map2(
   pop_df = output_sp$population, actual_K = actual_K,
   g_options)
 
-MASEs <- purrr::map(summaries_optim_C, "metrics") %>% 
-  map_dbl("avg_MASE")
-
-names(MASEs)         <- 1:n_inits
-sorted_MASEs         <- sort(MASEs)
-top_6                <- sorted_MASEs[1:6]
-top_id               <- which(MASEs %in% top_6)
+bf_search            <- find_best_fits(summaries_optim_C, n_inits)
+top_id               <- bf_search$top_id
 top_optim_C          <- summaries_optim_C[top_id]
-summary_optim[[mtx]] <- summaries_optim_C[[which.min(MASEs)]]
+summary_optim[[mtx]] <- summaries_optim_C[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_C, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
@@ -447,6 +446,12 @@ do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 K_matrix <- purrr::map(top_optim_C , "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+```{r}
+g_ts_errors <- ts_errors(top_optim_C, top_id)
+print(g_ts_errors)
+```
+
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_C, output_sp$theoretical_R0, 
@@ -492,15 +497,10 @@ summaries_optim_D <- map2(
   pop_df = output_sp$population, actual_K = actual_K,
   g_options)
 
-MASEs <- purrr::map(summaries_optim_D, "metrics") %>% 
-  map_dbl("avg_MASE")
-
-names(MASEs)         <- 1:n_inits
-sorted_MASEs         <- sort(MASEs)
-top_6                <- sorted_MASEs[1:6]
-top_id               <- which(MASEs %in% top_6)
+bf_search            <- find_best_fits(summaries_optim_D, n_inits)
+top_id               <- bf_search$top_id
 top_optim_D          <- summaries_optim_D[top_id]
-summary_optim[[mtx]] <- summaries_optim_D[[which.min(MASEs)]]
+summary_optim[[mtx]] <- summaries_optim_D[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_D, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
@@ -510,6 +510,12 @@ do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 K_matrix <- purrr::map(top_optim_D , "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+```{r}
+g_ts_errors <- ts_errors(top_optim_D, top_id)
+print(g_ts_errors)
+```
+
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_D, output_sp$theoretical_R0, 
@@ -552,15 +558,10 @@ summaries_optim_sym <- map2(
   pop_df = output_sp$population, actual_K = actual_K,
   g_options)
 
-MASEs <- purrr::map(summaries_optim_sym, "metrics") %>% 
-  map_dbl("avg_MASE")
-
-names(MASEs)         <- 1:n_inits
-sorted_MASEs         <- sort(MASEs)
-top_6                <- sorted_MASEs[1:6]
-top_id               <- which(MASEs %in% top_6)
+bf_search            <- find_best_fits(summaries_optim_sym, n_inits)
+top_id               <- bf_search$top_id
 top_optim_sym        <- summaries_optim_sym[top_id]
-summary_optim[[mtx]] <- summaries_optim_sym[[which.min(MASEs)]]
+summary_optim[[mtx]] <- summaries_optim_sym[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_sym, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
@@ -570,6 +571,12 @@ do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 K_matrix <- purrr::map(top_optim_sym, "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+```{r}
+g_ts_errors <- ts_errors(top_optim_sym, top_id)
+print(g_ts_errors)
+```
+
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_sym, output_sp$theoretical_R0, 
@@ -1041,6 +1048,43 @@ ggsave("./plots/incidence_fit_perfect_info.pdf", dpi = "print", height = 3,
        width = 8)
 ```
 
+### Likelihood
+
+```{r}
+log_liks <- purrr::map(summary_optim, "metrics") %>% 
+  map_dbl("log_lik") 
+  
+log_liks_optim <- data.frame(matrix  = m_index,
+                             log_lik = log_liks,
+                             method  = "NMS") %>% 
+  mutate(is_max = ifelse(log_lik == max(log_lik), TRUE, FALSE))
+
+log_liks <- purrr::map(summary_stan, "ts_summary") %>% 
+  map_dbl("log_lik")
+
+log_liks_stan <- data.frame(matrix  = m_index,
+                             log_lik = log_liks,
+                             method  = "HMC") %>% 
+  mutate(is_max = ifelse(log_lik == max(log_lik), TRUE, FALSE))
+
+log_liks_df <- bind_rows(log_liks_optim, log_liks_stan)
+
+ggplot(log_liks_df , aes(x = matrix, y = log_lik)) +
+  geom_point(aes(colour = is_max)) +
+  scale_colour_manual(values = c("grey", "steelblue")) +
+  coord_flip() +
+  geom_text(aes(label = round(log_lik, 1), colour = is_max), 
+            nudge_y = -65, size = 2) +
+  facet_wrap(~ method, ncol = 1) +
+  theme_test() +
+  theme(legend.position = "none") +
+  labs(y = "Log-likelihood",
+       x = "Structure")
+```
+
+
+
+
 \newpage
 
 ## Underreporting
@@ -1108,15 +1152,10 @@ summaries_optim_und_A <- map2(
   pop_df = output_sp$population, actual_K = actual_K,
   g_options)
 
-MASEs <- purrr::map(summaries_optim_und_A, "metrics") %>% 
-  map_dbl("avg_MASE")
-
-names(MASEs)             <- 1:n_inits
-sorted_MASEs             <- sort(MASEs)
-top_6                    <- sorted_MASEs[1:6]
-top_id                   <- which(MASEs %in% top_6)
+bf_search                <- find_best_fits(summaries_optim_und_A, n_inits)
+top_id                   <- bf_search$top_id
 top_optim_A              <- summaries_optim_und_A[top_id]
-summary_und_optim[[mtx]] <- summaries_optim_und_A[[which.min(MASEs)]]
+summary_und_optim[[mtx]] <- summaries_optim_und_A[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_A, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
@@ -1125,6 +1164,12 @@ do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 K_matrix <- purrr::map(top_optim_A, "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+```{r}
+g_ts_errors <- ts_errors(top_optim_A, top_id)
+print(g_ts_errors)
+```
+
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_A, output_sp$theoretical_R0, 
@@ -1168,15 +1213,10 @@ summaries_optim_und_B <- map2(
   pop_df = output_sp$population, actual_K = actual_K,
   g_options)
 
-MASEs <- purrr::map(summaries_optim_und_B, "metrics") %>% 
-  map_dbl("avg_MASE")
-
-names(MASEs)             <- 1:n_inits
-sorted_MASEs             <- sort(MASEs)
-top_6                    <- sorted_MASEs[1:6]
-top_id                   <- which(MASEs %in% top_6)
+bf_search                <- find_best_fits(summaries_optim_und_B, n_inits)
+top_id                   <- bf_search$top_id
 top_optim_B              <- summaries_optim_und_B[top_id]
-summary_und_optim[[mtx]] <- summaries_optim_und_B[[which.min(MASEs)]]
+summary_und_optim[[mtx]] <- summaries_optim_und_B[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_B, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
@@ -1187,13 +1227,17 @@ K_matrix <- purrr::map(top_optim_B, "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
 
+```{r}
+g_ts_errors <- ts_errors(top_optim_B, top_id)
+print(g_ts_errors)
+```
+
+
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_B, output_sp$theoretical_R0, 
                                 top_id) 
 print(g_errors)
 ```
-
-
 
 \newpage
 
@@ -1231,15 +1275,10 @@ summaries_optim_und_C <- map2(
   pop_df = output_sp$population, actual_K = actual_K,
   g_options)
 
-MASEs <- purrr::map(summaries_optim_und_C, "metrics") %>% 
-  map_dbl("avg_MASE")
-
-names(MASEs)             <- 1:n_inits
-sorted_MASEs             <- sort(MASEs)
-top_6                    <- sorted_MASEs[1:6]
-top_id                   <- which(MASEs %in% top_6)
+bf_search                <- find_best_fits(summaries_optim_und_C, n_inits)
+top_id                   <- bf_search$top_id
 top_optim_C              <- summaries_optim_und_C[top_id]
-summary_und_optim[[mtx]] <- summaries_optim_und_C[[which.min(MASEs)]]
+summary_und_optim[[mtx]] <- summaries_optim_und_C[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_C, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
@@ -1248,6 +1287,12 @@ do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 K_matrix <- purrr::map(top_optim_C, "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+```{r}
+g_ts_errors <- ts_errors(top_optim_C, top_id)
+print(g_ts_errors)
+```
+
+
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_C, output_sp$theoretical_R0, 
                                 top_id) 
@@ -1292,15 +1337,10 @@ summaries_optim_und_D <- map2(
   pop_df = output_sp$population, actual_K = actual_K,
   g_options)
 
-MASEs <- purrr::map(summaries_optim_und_D, "metrics") %>% 
-  map_dbl("avg_MASE")
-
-names(MASEs)             <- 1:n_inits
-sorted_MASEs             <- sort(MASEs)
-top_6                    <- sorted_MASEs[1:6]
-top_id                   <- which(MASEs %in% top_6)
+bf_search                <- find_best_fits(summaries_optim_und_D, n_inits)
+top_id                   <- bf_search$top_id
 top_optim_D              <- summaries_optim_und_D[top_id]
-summary_und_optim[[mtx]] <- summaries_optim_und_D[[which.min(MASEs)]]
+summary_und_optim[[mtx]] <- summaries_optim_und_D[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_D, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
@@ -1309,6 +1349,12 @@ do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 ```{r}
 K_matrix <- purrr::map(top_optim_D, "g_K_hat")
 do.call("grid.arrange", K_matrix)
+```
+
+
+```{r}
+g_ts_errors <- ts_errors(top_optim_D, top_id)
+print(g_ts_errors)
 ```
 
 
@@ -1354,15 +1400,10 @@ summaries_optim_und_sym <- map2(
   pop_df = output_sp$population, actual_K = actual_K,
   g_options)
 
-MASEs <- purrr::map(summaries_optim_und_sym, "metrics") %>% 
-  map_dbl("avg_MASE")
-
-names(MASEs)             <- 1:n_inits
-sorted_MASEs             <- sort(MASEs)
-top_6                    <- sorted_MASEs[1:6]
-top_id                   <- which(MASEs %in% top_6)
+bf_search                <- find_best_fits(summaries_optim_und_sym, n_inits)
+top_id                   <- bf_search$top_id
 top_optim_sym            <- summaries_optim_und_sym[top_id]
-summary_und_optim[[mtx]] <- summaries_optim_und_sym[[which.min(MASEs)]]
+summary_und_optim[[mtx]] <- summaries_optim_und_sym[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_sym, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
@@ -1372,11 +1413,19 @@ do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 K_matrix <- purrr::map(top_optim_sym, "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+```{r}
+g_ts_errors <- ts_errors(top_optim_sym, top_id)
+print(g_ts_errors)
+```
+
+
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_sym, output_sp$theoretical_R0, 
                                 top_id) 
 print(g_errors)
 ```
+
+
 \newpage
 
 ### By Stan
@@ -1816,6 +1865,45 @@ ggplot(error_ts, aes(x = matrix, y = MASE)) +
 
 ggsave("./plots/incidence_fit_underreporting.pdf", dpi = "print", height = 3,
        width = 8)
+```
+
+### Likelihood
+
+```{r}
+log_liks <- purrr::map(summary_und_optim, "metrics") %>% 
+  map_dbl("log_lik") 
+  
+log_liks_optim <- data.frame(matrix  = m_index,
+                             log_lik = log_liks,
+                             method  = "NMS") %>% 
+  mutate(is_max = ifelse(log_lik == max(log_lik), TRUE, FALSE))
+  
+log_liks_optim <- data.frame(matrix  = m_index,
+                             log_lik = log_liks,
+                             method  = "NMS") %>% 
+  mutate(is_max = ifelse(log_lik == max(log_lik), TRUE, FALSE))
+
+log_liks <- purrr::map(summary_stan_und, "ts_summary") %>% 
+  map_dbl("log_lik")
+
+log_liks_stan <- data.frame(matrix  = m_index,
+                             log_lik = log_liks,
+                             method  = "HMC") %>% 
+  mutate(is_max = ifelse(log_lik == max(log_lik), TRUE, FALSE))
+
+log_liks_df <- bind_rows(log_liks_optim, log_liks_stan)
+
+ggplot(log_liks_df , aes(x = matrix, y = log_lik)) +
+  geom_point(aes(colour = is_max)) +
+  scale_colour_manual(values = c("grey", "steelblue")) +
+  coord_flip() +
+  geom_text(aes(label = round(log_lik, 1), colour = is_max), 
+            nudge_y = -65, size = 2) +
+  facet_wrap(~ method, ncol = 1) +
+  theme_test() +
+  theme(legend.position = "none") +
+  labs(y = "Log-likelihood",
+       x = "Structure")
 ```
 
 ### Reporting value

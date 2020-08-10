@@ -25,9 +25,12 @@ summarise_results <- function(fit, conceptual_matrix, incidence_df, pop_df,
   
   metrics <- accuracy_metrics(sim_data, real_data, age_groups)
   
+  log_lik <- mean(posterior_df$log_lik)
+  
   ts_summary <- list(g_comparison = g_comparison,
                      MSE          = metrics$avg_MSE,
-                     MASE         = metrics$avg_MASE)
+                     MASE         = metrics$avg_MASE,
+                     log_lik      = log_lik)
   
   R_0_obj <- posterior_R0(param_samples, conceptual_matrix, pop_df)
   
