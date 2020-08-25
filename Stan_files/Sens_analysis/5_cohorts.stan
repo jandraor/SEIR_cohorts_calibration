@@ -146,3 +146,7 @@ model {
     y4     ~ poisson(incidence4);
     y5     ~ poisson(incidence5);
 }
+generated quantities {
+  real log_lik;
+  log_lik = poisson_lpmf(y1 | incidence1) + poisson_lpmf(y2 | incidence2) + poisson_lpmf(y3 | incidence3) + poisson_lpmf(y4 | incidence4) + poisson_lpmf(y5 | incidence5);
+}

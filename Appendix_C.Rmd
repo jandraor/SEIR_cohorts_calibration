@@ -8,8 +8,16 @@ header-includes:
   - \usepackage{booktabs}
 ---
 
+This appendix aims to illustrate the process of calibrating a disaggregated
+SEIR model to the 1957 Flu data via Hamiltonian Monte Carlo. We assess the 
+results by exploring trace plots, estimates for the basic reproduction 
+number ($R_0$) and the scaled WAIFW matrix.
+
+\tableofcontents 
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                      cache = TRUE)
 
 ## WORKAROUND: https://github.com/rstudio/rstudio/issues/6692
 ## Revert to 'sequential' setup of PSOCK cluster in RStudio Console on macOS and R 4.0.0
@@ -23,15 +31,20 @@ library(dplyr)
 library(ggplot2)
 library(ggpubr)
 library(lubridate)
+library(Metrics)
 library(purrr)
 library(readr)
 library(readsdr)
 library(scales)
 library(stringr)
 library(tidyr)
+
+source("./R/Metrics.R")
 ```
 
-# Data
+\newpage
+
+# 1957 Flu Data
 
 ```{r}
 raw_data <- read_csv("./data/flu_data_1957.csv") %>% 
@@ -64,13 +77,16 @@ ggplot(flu_data, aes(x = week, y = y)) +
 
 ## Biological parameters
 
-* $\sigma = 1$ days
-* $\gamma = 2$ days
+* Latent period ($\sigma^{-1}$): 1 day. It is the inverse of the rate of 
+onset of infectiousness.
+
+* Infectious period ($\gamma^{-1}$): 2 days. It is the inverse of the recovery
+rate.
 
 ## Priors
 
-$k_{ij} \sim normal(0, 10)$
-$\rho \sim normal(0.5, 0.5)$
+* Normalised transmission rates: $k_{ij} \sim normal(0, 10)$
+* Reporting fraction: $\rho \sim normal(0.5, 0.5)$
 
 ## HMC
 
@@ -157,7 +173,7 @@ output               <- run_stan(filename, var_cache, cache_file, arg_list)
 flu_fit              <- output$stan_fit
 ```
 
-# Trace plots
+### Trace plots
 
 ```{r}
 indexes <- str_replace(o_SEIR$params, "k", "")
@@ -176,9 +192,12 @@ dimnames(posterior)[[3]] <- post_names
 mcmc_trace(posterior, pars = c("rho", params_translation$new),
            facet_args = list(labeller = label_parsed),
            n_warmup = 1000) +
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        axis.text = element_text(size = 8))
 ```
 
+### Fit
 
 ```{r}
 source("./R/summarise_results.R")
@@ -197,9 +216,12 @@ metrics <- accuracy_metrics(sim_data, real_data2, age_groups)
 
 ggsave(file = "./plots/C_flu1957.pdf", g_ts, dpi = "print",
        height = 4, width = 6)
+g_ts
 ```
 
-```{r}
+### K matrix
+
+```{r, fig.height = 4, fig.width = 4, fig.align = "center"}
 source("./R/matrix_utils.R")
 source('./R/summaries_utils.R')
 cm                      <- get_cm_sym(4)
@@ -212,6 +234,8 @@ int_df <- get_k_intervals(param_samples, cm)
 
 draw_WAIFW(k_hat, "Weekly rates", int_df, precision = 1)
 ```
+
+### $R_0$
 
 ```{r}
 specs_list <- list(x_pos = 2.04, ypos_mean = 17, ypos_median = 16,

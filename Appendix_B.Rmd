@@ -8,8 +8,17 @@ header-includes:
   - \usepackage{booktabs}
 ---
 
+This appendix aims to illustrate the sensitivity analysis performed on the 
+calibration of disaggregated SEIR models to synthetic data via Hamiltonian Monte
+Carlo. The sole assumption for the transmission rates lies in its symmetry. No
+further constrains are imposed. The analysis is divided into two sections: 
+1) Sensitivity to the population size; 2) Sensitivity to the number of cohorts.
+
+\tableofcontents 
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                      cache = TRUE)
 
 ## WORKAROUND: https://github.com/rstudio/rstudio/issues/6692
 ## Revert to 'sequential' setup of PSOCK cluster in RStudio Console on macOS and R 4.0.0
@@ -20,6 +29,7 @@ if (Sys.getenv("RSTUDIO") == "1" && !nzchar(Sys.getenv("RSTUDIO_TERM")) &&
 ```
 
 ```{r}
+library(cmdstanr)
 library(deSolve)
 library(dplyr)
 library(GGally)
@@ -31,16 +41,20 @@ library(Metrics)
 library(purrr)
 library(readsdr)
 library(reshape2)
+library(rstan)
 library(scales)
 library(socialmixr)
 library(stringr)
+library(tictoc)
 library(tidyr)
 
 source("./R/graphs.R")
 source("./R/Metrics.R")
 source("./R/summaries_utils.R")
+source("./R/synthetic_incidence.R")
 ```
 
+\newpage
 
 # Sensitivity to population size
 
@@ -83,14 +97,13 @@ grey_actual_K <- output_sp_list[[1]]$g_K_matrix +
 
 output_sp_list[[1]]$g_K_matrix
 ```
+\newpage
 
 ## Synthetic incidences
 
-Reporting fraction = 0.8
+All incidences are underreported, where the reporting fraction is equal to 0.8
 
 ```{r}
-source("./R/synthetic_incidence.R")
-
 seed               <- 49732
 stop_time          <- 50
 reporting_fraction <- 0.8
@@ -103,7 +116,7 @@ output_gsi <- lapply(output_sp_list, generate_synthetic_incidence,
 names(output_gsi) <- case_names
 ```
 
-```{r}
+```{r, fig.height = 6}
 combined_df <- imap_dfr(output_gsi, function(syn_obj, label) {
   syn_obj$tidy_list$und %>% mutate(case = label)
 }) %>% mutate(case = factor(case, levels = case_names))
@@ -117,7 +130,7 @@ ggplot(combined_df, aes(x = time, y = y)) +
        y = "Incidence [cases / day]",
        x = "Days")
 ```
-
+\newpage
 
 ## Calibration 
 
@@ -216,7 +229,9 @@ pred_K <- sens_summary[[case]]$summary_k$g_k_hat +
 grid.arrange(pred_K, grey_actual_K, ncol = 2)
 ```
 
-```{r fig.height = 2.5, fig.align = 'center'}
+\hfill
+
+```{r fig.height = 3.5, fig.align = 'center'}
 sens_summary[[case]]$ts_summary$g_comparison
 ```
 
@@ -272,7 +287,9 @@ pred_K <- sens_summary[[case]]$summary_k$g_k_hat +
 grid.arrange(pred_K, grey_actual_K, ncol = 2)
 ```
 
-```{r fig.height = 2.5, fig.align = 'center'}
+\hfill
+
+```{r fig.height = 3.5, fig.align = 'center'}
 sens_summary[[case]]$ts_summary$g_comparison
 ```
 
@@ -327,12 +344,14 @@ pred_K <- sens_summary[[case]]$summary_k$g_k_hat +
 grid.arrange(pred_K, grey_actual_K, ncol = 2)
 ```
 
-```{r fig.height = 2.5, fig.align = 'center'}
+\hfill
+
+```{r fig.height = 3.5, fig.align = 'center'}
 sens_summary[[case]]$ts_summary$g_comparison
 ```
 ## Reporting value
 
-```{r}
+```{r, fig.height = 4}
 
 rv_stan  <- map_df(sens_summary, function(sum_stan) {
   rho_list <- sum_stan$rho_hat
@@ -350,11 +369,13 @@ ggplot(rv_stan, aes(x = x, y = y)) +
     theme_pubr() +
     theme(legend.text  = element_text(size = 3)) +
     labs(x = "Scenario", y = "Reporting fraction",
-         title = "Reporting fraction by scenario")
+         title = "Reporting fraction by scenario",
+         caption = "The dashed line indicates the actual value")
 ```
+
 ## $R_0$
 
-```{r}
+```{r, fig.height = 4}
 R0_df <- map_df(sens_summary, consolidate_R0) %>% 
   mutate(x = factor(case_names, levels = case_names))
 
@@ -369,9 +390,10 @@ ggplot(R0_df, aes(x = x, y = R0)) +
   labs(x = "Scenario", y = bquote(R[0]),
        caption = "The dashed line indicates the actual value")
 ```
+
 ## Time comparison
 
-```{r}
+```{r, fig.height = 5}
 times <- map_dbl(time_sens, calculate_time)
 
 time_df <- data.frame(x = pop_sizes, y = times)
@@ -387,6 +409,7 @@ ggplot(time_df, aes(x = x, y = y)) +
 ```
 
 
+\newpage
 
 # Sensitivity to the number of cohorts
 
@@ -412,7 +435,7 @@ case_names -> names(cm_list)
 
 ## K matrices
 
-```{r}
+```{r, fig.height = 7, fig.width = 5}
 age_limits_list <- list(c(0, 5, 15, 45),
                         c(0, 5, 10, 15, 45),
                         c(0, 5, 10, 15, 20, 45))
@@ -467,8 +490,10 @@ ggplot(df, aes(x = time, y = y)) +
   geom_col(fill = "steelblue") +
   facet_wrap(~cohort) +
   theme_pubr() +
-  labs(title = "Incidence per age group and scenario",
-       subtitle = "n = 4")
+  labs(title    = "Incidence per age group and scenario",
+       subtitle = "n = 4",
+       x        = "Days",
+       y        = "Incidence")
 ```
 
 ```{r}
@@ -479,7 +504,9 @@ ggplot(df, aes(x = time, y = y)) +
   facet_wrap(~cohort) +
   theme_pubr() +
   labs(title = "Incidence per age group and scenario",
-       subtitle = "n = 5")
+       subtitle = "n = 5",
+       x        = "Days",
+       y        = "Incidence")
 ```
 
 ```{r}
@@ -490,7 +517,9 @@ ggplot(df, aes(x = time, y = y)) +
   facet_wrap(~cohort) +
   theme_pubr() +
   labs(title = "Incidence per age group and scenario",
-       subtitle = "n = 6")
+       subtitle = "n = 6",
+       x        = "Days",
+       y        = "Incidence")
 ```
 
 
@@ -498,9 +527,14 @@ ggplot(df, aes(x = time, y = y)) +
 ## Calibration
 
 ```{r cal_coh}
+source("./R/stan_utils.R")
+source("./R/write_SEIR_model.R")
+source("./R/summarise_results.R")
+
 n_warm_up <- 1000
 n_iter    <- 1000
 n_chains  <- 4
+mtx       <- "sym"
 
 arg_list_outline <- list(fit    = NULL,
                          data   = NULL, 
@@ -581,7 +615,10 @@ pred_K <- sens_coh_summary[[coh]]$summary_k$g_k_hat +
 
 grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2)
 ```
-```{r fig.height = 2.5, fig.align = 'center'}
+
+\hfill
+
+```{r fig.height = 3.5, fig.align = 'center'}
 sens_coh_summary[[coh]]$ts_summary$g_comparison
 ```
 
@@ -596,6 +633,9 @@ filename     <- str_glue("./Stan_files/Sens_analysis/5_cohorts.stan")
 o_SEIR <- write_SEIR_model(mtx, filename, output_gsi[[coh]]$stock_list, 
                            params_prior, pop_size = pop_size, 
                            "underreporting", n = nc)
+
+y_list        <- output_gsi[[coh]]$data_list$und
+names(y_list) <- paste0("y", 1:length(y_list))
 
 stan_d <- c(list(n_obs    = length_data,
                  n_difeq  = length(output_gsi[[coh]]$stock_list), # number of differential equations
@@ -617,7 +657,7 @@ coh_fit_list[[coh]]  <- output$stan_fit
 time_coh[[coh]]      <- output$time
 ```
 
-```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+```{r, fig.height = 3, fig.width = 6, fig.align = 'center'}
 specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
                    text_size = 2, ypos_interval = 14,
                    title = "Symmetric matrix", xlabel = "")
@@ -638,7 +678,9 @@ pred_K <- sens_coh_summary[[coh]]$summary_k$g_k_hat +
 grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2)
 ```
 
-```{r fig.height = 2.5, fig.align = 'center'}
+\hfill
+
+```{r fig.height = 3.5, fig.align = 'center'}
 sens_coh_summary[[coh]]$ts_summary$g_comparison
 ```
 
@@ -678,7 +720,7 @@ coh_fit_list[[coh]]  <- output$stan_fit
 time_coh[[coh]]      <- output$time
 ```
 
-```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+```{r, fig.height = 3.25, fig.width = 6.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
                    text_size = 2, ypos_interval = 14,
                    title = "Symmetric matrix", xlabel = "")
@@ -698,12 +740,16 @@ pred_K <- sens_coh_summary[[coh]]$summary_k$g_k_hat +
 
 grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2)
 ```
-```{r fig.height = 2.5, fig.align = 'center'}
+
+\hfill
+
+```{r fig.height = 3.5, fig.align = 'center'}
 sens_coh_summary[[coh]]$ts_summary$g_comparison
 ```
+
 ## Reporting value
 
-```{r}
+```{r, fig.height = 4}
 
 rv_stan  <- map_df(sens_coh_summary, function(sum_stan) {
   rho_list <- sum_stan$rho_hat
@@ -723,9 +769,10 @@ ggplot(rv_stan, aes(x = x, y = y)) +
     labs(x = "Scenario", y = "Reporting fraction",
          title = "Reporting fraction by scenario")
 ```
+
 ## Estimated $R_0$
 
-```{r}
+```{r, fig.height = 4}
 R0_df <- map_df(sens_coh_summary, consolidate_R0) %>% 
   mutate(x = factor(case_names, levels = case_names))
 

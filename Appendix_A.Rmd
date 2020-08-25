@@ -8,9 +8,17 @@ header-includes:
   - \usepackage{booktabs}
 ---
 
+This appendix aims to illustrate the process of calibrating five variants of a
+disaggregated SEIR model to synthetic data via the Nelder-Mead algorithm and 
+Hamiltonian Monte Carlo. The first section shows the inputs and outputs of
+the procedure of synthetic data generation. The second section presents the 
+results of the calibration.
+
+\tableofcontents 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                      cache = FALSE)
+                      cache = TRUE)
 
 ## WORKAROUND: https://github.com/rstudio/rstudio/issues/6692
 ## Revert to 'sequential' setup of PSOCK cluster in RStudio Console on macOS and R 4.0.0
@@ -80,7 +88,7 @@ output_sp$g_c_M_matrix
 
 
 
-##  Synthetic WAIFW & normalised age-specific contact rate matrix (K)
+##  Synthetic WAIFW (B) & synthetic scaled WAIFW (K)
 
 ```{r g_synWAIFW, fig.height = 2.5, fig.width = 5, fig.align= "center"}
 grey_actual_K <- output_sp$g_K_matrix +
@@ -129,7 +137,7 @@ g_timeseries <- ggplot(inc_df, aes(x = time, y = y)) +
 
 print(g_timeseries)
 
-ggsave("./plots/incidence_reports.png", dpi = "print", height = 5, width = 8)
+ggsave("./plots/A_incidence_reports.pdf", dpi = "print", height = 5, width = 8)
 ```
 
 
@@ -254,7 +262,7 @@ sim_specs <- list(start_time = 0,
                   stock_list = output_gsi$stock_list)
 
 n_inits     <- 24
-plot_titles <- paste0("Init value = ", 1:n_inits)
+plot_titles <- paste0("Init id = ", 1:n_inits)
 
 summary_optim         <- vector(mode = "list", length(cm_list))
 names(summary_optim)  <- m_index
@@ -265,7 +273,7 @@ names(time_optim_pfr) <- m_index
 
 #### Matrix A
 
-#### Inits
+##### Inits
 
 \hfill
 
@@ -291,6 +299,11 @@ optim_det_A           <- output$result
 time_optim_pfr[[mtx]] <- output$time
 ```
 
+\newpage
+
+##### Results (top 6 fits)
+
+\hfill
 
 ```{r summary_optim_A, fig.height = 7}
 source("./R/summarise_optim_fit.R")
@@ -333,7 +346,7 @@ print(g_errors)
 
 #### Matrix B
 
-#### Inits
+##### Inits
 
 \hfill
 
@@ -359,6 +372,11 @@ optim_det_B           <- output$result
 time_optim_pfr[[mtx]] <- output$time
 ```
 
+\newpage
+
+##### Results (top 6 fits)
+
+\hfill
 
 ```{r summary_optim_B, fig.height = 7}
 source("./R/summarise_optim_fit.R")
@@ -378,10 +396,12 @@ comparison_graphs <- purrr::map(top_optim_B, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 ```
 
-```{r}
+```{r, fig.height = 7}
 K_matrix <- purrr::map(top_optim_B , "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+\newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_B, top_id)
@@ -399,7 +419,7 @@ print(g_errors)
 
 #### Matrix C
 
-#### Inits
+##### Inits
 
 \hfill
 
@@ -424,6 +444,12 @@ optim_det_C           <- output$result
 time_optim_pfr[[mtx]] <- output$time
 ```
 
+\newpage
+
+#### Results (top 6 fits)
+
+\hfill
+
 ```{r summary_optim_C, fig.height = 7}
 source("./R/summarise_optim_fit.R")
 
@@ -442,10 +468,12 @@ comparison_graphs <- purrr::map(top_optim_C, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 ```
 
-```{r}
+```{r, fig.height = 7}
 K_matrix <- purrr::map(top_optim_C , "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+\newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_C, top_id)
@@ -463,7 +491,7 @@ print(g_errors)
 
 #### Matrix D
 
-#### Inits
+##### Inits
 
 \hfill
 
@@ -488,6 +516,12 @@ optim_det_D           <- output$result
 time_optim_pfr[[mtx]] <- output$time
 ```
 
+\newpage
+
+##### Results (top 6 fits)
+
+\hfill
+
 ```{r summary_optim_D, fig.height = 7}
 source("./R/summarise_optim_fit.R")
 
@@ -504,12 +538,18 @@ summary_optim[[mtx]] <- summaries_optim_D[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_D, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
+
+g_for_plot <- do.call("arrangeGrob", c(comparison_graphs, ncol = 2))
+ggsave(file = "./plots/A_matrix_D_ts_optim.pdf", g_for_plot, dpi = "print",
+       height = 7, width = 5)
 ```
 
-```{r}
+```{r, fig.height = 7}
 K_matrix <- purrr::map(top_optim_D , "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+\newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_D, top_id)
@@ -525,6 +565,10 @@ print(g_errors)
 
 \newpage
 #### Symmetric matrix
+
+##### Inits
+
+\hfill
 
 ```{r inits_sym}
 source("./R/NMS_utils.R")
@@ -549,6 +593,12 @@ optim_det_sym         <- output$result
 time_optim_pfr[[mtx]] <- output$time
 ```
 
+\newpage
+
+##### Results (top 6 fits)
+
+\hfill
+
 ```{r summary_optim_sym, fig.height = 7}
 source("./R/summarise_optim_fit.R")
 
@@ -567,10 +617,12 @@ comparison_graphs <- purrr::map(top_optim_sym, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 ```
 
-```{r}
+```{r, fig.height = 7}
 K_matrix <- purrr::map(top_optim_sym, "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+\newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_sym, top_id)
@@ -665,7 +717,7 @@ kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.305, ypos_mean = 29, ypos_median = 26,
                    text_size = 2, ypos_interval = 23,
-                   title = "Matrix A", xlabel = "")
+                   title = "Matrix A - R0", xlabel = "")
 
 summary_stan[[mtx]] <- summarise_results(stan_fit_A, conceptual_matrix_A,
                                          prf_df, 
@@ -736,7 +788,7 @@ source("./R/summarise_results.R")
 
 specs_list <- list(x_pos = 2.275, ypos_mean = 35, ypos_median = 31,
                    text_size = 2, ypos_interval = 27,
-                   title = "Matrix B", xlabel = "")
+                   title = "Matrix B - R0", xlabel = "")
 
 summary_stan[[mtx]] <- summarise_results(stan_fit_B, conceptual_matrix_B,
                                          prf_df, 
@@ -806,7 +858,7 @@ source("./R/summarise_results.R")
 
 specs_list <- list(x_pos = 2.315, ypos_mean = 36, ypos_median = 32,
                      text_size = 2, ypos_interval = 28,
-                     title = "Matrix C", xlabel = "")
+                     title = "Matrix C - R0", xlabel = "")
 
 summary_stan[[mtx]] <- summarise_results(stan_fit_C, conceptual_matrix_C,
                                          prf_df, 
@@ -875,7 +927,7 @@ kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.31, ypos_mean = 28, ypos_median = 26,
                      text_size = 2, ypos_interval = 24,
-                     title = "Matrix D", xlabel = "")
+                     title = "Matrix D - R0", xlabel = "")
 
 summary_stan[[mtx]] <- summarise_results(stan_fit_D, conceptual_matrix_D,
                                          prf_df, 
@@ -921,7 +973,7 @@ g_for_plot <- mcmc_trace(posterior, pars = c("kappa[11]", "kappa[22]",
 
 print(g_for_plot)
 
-ggsave(file = "./plots/traceplot_D.pdf", g_for_plot, dpi = "print",
+ggsave(file = "./plots/A_traceplot_D.pdf", g_for_plot, dpi = "print",
        height = 4, width = 6)
 ```
 \newpage
@@ -970,7 +1022,7 @@ source("./R/summarise_results.R")
 
 specs_list <- list(x_pos = 2.31, ypos_mean = 30, ypos_median = 26,
                    text_size = 2, ypos_interval = 22,
-                   title = "Symmetric matrix", xlabel = "")
+                   title = "Symmetric matrix - R0", xlabel = "")
 
 summary_stan[[mtx]] <- summarise_results(stan_fit_sym, conceptual_matrix_sym,
                                          prf_df, 
@@ -981,9 +1033,9 @@ summary_stan[[mtx]] <- summarise_results(stan_fit_sym, conceptual_matrix_sym,
 pred_K <- summary_stan[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+g_for_plot <- grid.arrange(pred_K, grey_actual_K, ncol = 2)
 
-ggsave(file = "./plots/WAIFW_sym_HMC.pdf", g_for_plot, dpi = "print",
+ggsave(file = "./plots/A_WAIFW_sym_HMC.pdf", g_for_plot, dpi = "print",
        height = 3, width = 6)
 ```
 
@@ -1039,12 +1091,13 @@ ggplot(error_ts, aes(x = matrix, y = MASE)) +
   geom_lollipop(aes(colour = is_min)) +
   scale_colour_manual(values = c("grey", "steelblue")) +
   coord_flip() +
-  geom_text(aes(label = round(MASE, 2)), nudge_y = 0.1, size = 3) +
+  geom_text(aes(label = round(MASE, 2), colour = is_min), nudge_y = 0.2, 
+            size = 3) +
   facet_wrap(~ method) +
   theme_test() +
   theme(legend.position = "none")
 
-ggsave("./plots/incidence_fit_perfect_info.pdf", dpi = "print", height = 3,
+ggsave("./plots/A_incidence_fit_perfect_info.pdf", dpi = "print", height = 3,
        width = 8)
 ```
 
@@ -1100,7 +1153,7 @@ sim_specs <- list(start_time   = 0,
                   integ_method = "rk4",
                   stock_list   = output_gsi$stock_list)
 
-plot_titles <- paste0("Init value = ", 1:n_inits)
+plot_titles <- paste0("Init id = ", 1:n_inits)
 
 g_options <- list(stripSize = 4,
                   legendPosition = "bottom",
@@ -1119,6 +1172,11 @@ names(time_optim_und)    <- m_index
 
 #### Matrix A
 
+##### Inits
+
+\hfill
+
+
 ```{r inits_und_A}
 set.seed(3890)
 
@@ -1130,7 +1188,8 @@ inits_A    <- get_matrix_inits(n_inits, cm_list[[mtx]],
 inits_df <- as.data.frame(do.call(rbind, inits_A)) %>% 
   mutate(init_id = row_number(), .before = 1)
 
-knitr::kable(inits_df, "latex", booktabs = TRUE)
+knitr::kable(inits_df, "latex", booktabs = TRUE) %>% 
+  kable_styling(font_size = 7)
 ```
 
 ```{r optim_und_A}
@@ -1142,6 +1201,11 @@ optim_und_A           <- output$result
 time_optim_und[[mtx]] <- output$time
 ```
 
+\newpage
+
+##### Results (top 6 fits)
+
+\hfill
 
 ```{r summary_und_optim_A, fig.height = 7}
 source("./R/summarise_optim_fit.R")
@@ -1160,10 +1224,12 @@ summary_und_optim[[mtx]] <- summaries_optim_und_A[[bf_search$pos_best_fit]]
 comparison_graphs <- purrr::map(top_optim_A, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 ```
-```{r}
+```{r, fig.height = 7}
 K_matrix <- purrr::map(top_optim_A, "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+\newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_A, top_id)
@@ -1181,6 +1247,12 @@ print(g_errors)
 
 #### Matrix B
 
+##### Inits
+
+\hfill
+
+
+
 ```{r inits_und_B}
 set.seed(580)
 
@@ -1192,7 +1264,8 @@ inits_B    <- get_matrix_inits(n_inits, cm_list[[mtx]],
 inits_df <- as.data.frame(do.call(rbind, inits_B)) %>% 
   mutate(init_id = row_number(), .before = 1)
 
-knitr::kable(inits_df, "latex", booktabs = TRUE)
+knitr::kable(inits_df, "latex", booktabs = TRUE)%>%
+  kable_styling(font_size = 7)
 ```
 
 ```{r optim_und_B}
@@ -1203,6 +1276,12 @@ output       <- optimise_SEIR2(inits_B, mtx, data_list_und, sim_specs, var_cache
 optim_und_B           <- output$result
 time_optim_und[[mtx]] <- output$time
 ```
+
+\newpage
+
+##### Results (top 6 fits)
+
+\hfill
 
 ```{r summary_und_optim_B, fig.height = 7}
 source("./R/summarise_optim_fit.R")
@@ -1222,10 +1301,12 @@ comparison_graphs <- purrr::map(top_optim_B, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 ```
 
-```{r}
+```{r, fig.height = 7}
 K_matrix <- purrr::map(top_optim_B, "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+\newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_B, top_id)
@@ -1243,6 +1324,10 @@ print(g_errors)
 
 #### Matrix C
 
+##### Inits
+
+\hfill
+
 ```{r inits_und_C}
 set.seed(4647)
 
@@ -1254,7 +1339,8 @@ inits_C    <- get_matrix_inits(n_inits, cm_list[[mtx]],
 inits_df <- as.data.frame(do.call(rbind, inits_C)) %>% 
   mutate(init_id = row_number(), .before = 1)
 
-knitr::kable(inits_df, "latex", booktabs = TRUE)
+knitr::kable(inits_df, "latex", booktabs = TRUE) %>%
+  kable_styling(font_size = 7)
 ```
 
 ```{r optim_und_C}
@@ -1265,6 +1351,12 @@ output       <- optimise_SEIR2(inits_C, mtx, data_list_und, sim_specs, var_cache
 optim_und_C           <- output$result
 time_optim_und[[mtx]] <- output$time
 ```
+
+\newpage
+
+##### Results (top 6 fits)
+
+\hfill
 
 ```{r summary_und_optim_C, fig.height = 7}
 source("./R/summarise_optim_fit.R")
@@ -1283,10 +1375,13 @@ summary_und_optim[[mtx]] <- summaries_optim_und_C[[bf_search$pos_best_fit]]
 comparison_graphs <- purrr::map(top_optim_C, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 ```
-```{r}
+```{r, fig.height = 7}
 K_matrix <- purrr::map(top_optim_C, "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+\newpage
+
 ```{r}
 g_ts_errors <- ts_errors(top_optim_C, top_id)
 print(g_ts_errors)
@@ -1305,6 +1400,10 @@ print(g_errors)
 
 #### Matrix D
 
+##### Inits
+
+\hfill
+
 ```{r inits_und_D}
 set.seed(2860)
 
@@ -1316,7 +1415,8 @@ inits_D    <- get_matrix_inits(n_inits, cm_list[[mtx]],
 inits_df <- as.data.frame(do.call(rbind, inits_D)) %>% 
   mutate(init_id = row_number(), .before = 1)
 
-knitr::kable(inits_df, "latex", booktabs = TRUE)
+knitr::kable(inits_df, "latex", booktabs = TRUE) %>%
+  kable_styling(font_size = 7)
 ```
 
 ```{r optim_und_D}
@@ -1327,6 +1427,12 @@ output       <- optimise_SEIR2(inits_D, mtx, data_list_und, sim_specs, var_cache
 optim_und_D           <- output$result
 time_optim_und[[mtx]] <- output$time
 ```
+
+\newpage
+
+##### Results (top 6 fits)
+
+\hfill
 
 ```{r summary_und_optim_D, fig.height = 7}
 source("./R/summarise_optim_fit.R")
@@ -1346,11 +1452,12 @@ comparison_graphs <- purrr::map(top_optim_D, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 ```
 
-```{r}
+```{r, fig.height = 7}
 K_matrix <- purrr::map(top_optim_D, "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
 
+\newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_D, top_id)
@@ -1368,6 +1475,10 @@ print(g_errors)
 
 #### Symmetric matrix
 
+##### Inits
+
+\hfill
+
 ```{r inits_und_S}
 set.seed(2860)
 
@@ -1379,7 +1490,8 @@ inits_sym    <- get_matrix_inits(n_inits, cm_list[[mtx]],
 inits_df <- as.data.frame(do.call(rbind, inits_sym)) %>% 
   mutate(init_id = row_number(), .before = 1)
 
-knitr::kable(inits_df, "latex", booktabs = TRUE)
+knitr::kable(inits_df, "latex", booktabs = TRUE) %>%
+  kable_styling(font_size = 7)
 ```
 
 ```{r optim_und_S}
@@ -1390,6 +1502,12 @@ output         <- optimise_SEIR2(inits_sym, mtx, data_list_und, sim_specs, var_c
 optim_und_sym         <- output$result
 time_optim_und[[mtx]] <- output$time
 ```
+
+\newpage
+
+#### Results (top 6 fits)
+
+\hfill
 
 ```{r summary_und_optim_S, fig.height = 7}
 source("./R/summarise_optim_fit.R")
@@ -1409,10 +1527,13 @@ comparison_graphs <- purrr::map(top_optim_sym, "g_comparison")
 do.call("grid.arrange", c(comparison_graphs, ncol = 2))
 ```
 
-```{r}
+```{r, fig.height = 7}
 K_matrix <- purrr::map(top_optim_sym, "g_K_hat")
 do.call("grid.arrange", K_matrix)
 ```
+
+\newpage
+
 ```{r}
 g_ts_errors <- ts_errors(top_optim_sym, top_id)
 print(g_ts_errors)
@@ -1510,7 +1631,7 @@ kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.315, ypos_mean = 20, ypos_median = 17,
                    text_size = 2, ypos_interval = 14,
-                   title = "Matrix A", xlabel = "")
+                   title = "Matrix A - R0", xlabel = "")
 
 summary_stan_und[[mtx]] <- summarise_results(stan_und_A, cm_list[[mtx]],
                                          und_df, 
@@ -1579,7 +1700,7 @@ kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.2775, ypos_mean = 32, ypos_median = 28,
                    text_size = 2, ypos_interval = 24,
-                   title = "Matrix B", xlabel = "")
+                   title = "Matrix B - R0", xlabel = "")
 
 
 summary_stan_und[[mtx]] <- summarise_results(stan_und_B, cm_list[[mtx]],
@@ -1650,7 +1771,7 @@ kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.317, ypos_mean = 30, ypos_median = 27,
                    text_size = 2, ypos_interval = 24,
-                   title = "Matrix C", xlabel = "")
+                   title = "Matrix C - R0", xlabel = "")
 
 
 summary_stan_und[[mtx]] <- summarise_results(stan_und_C, cm_list[[mtx]],
@@ -1721,7 +1842,7 @@ kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
                    text_size = 2, ypos_interval = 14,
-                   title = "Matrix D", xlabel = "")
+                   title = "Matrix D - R0", xlabel = "")
 
 
 summary_stan_und[[mtx]] <- summarise_results(stan_und_D, cm_list[[mtx]],
@@ -1793,7 +1914,7 @@ kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
                    text_size = 2, ypos_interval = 14,
-                   title = "Symmetric matrix", xlabel = "")
+                   title = "Symmetric matrix - R0", xlabel = "")
 
 
 summary_stan_und[[mtx]] <- summarise_results(stan_und_sym, cm_list[[mtx]],
@@ -1858,12 +1979,13 @@ ggplot(error_ts, aes(x = matrix, y = MASE)) +
   geom_lollipop(aes(colour = is_min)) +
   scale_colour_manual(values = c("grey", "steelblue")) +
   coord_flip() +
-  geom_text(aes(label = round(MASE, 2)), nudge_y = 0.2, size = 3) +
+  geom_text(aes(label = round(MASE, 2), colour = is_min), nudge_y = 0.2, 
+            size = 3) +
   facet_wrap(~ method) +
   theme_test() +
   theme(legend.position = "none")
 
-ggsave("./plots/incidence_fit_underreporting.pdf", dpi = "print", height = 3,
+ggsave("./plots/A_incidence_fit_underreporting.pdf", dpi = "print", height = 3,
        width = 8)
 ```
 
@@ -1925,9 +2047,9 @@ rv_stan  <- map_df(summary_stan_und, function(sum_stan) {
 }) %>% mutate(x = m_index, method = "HMC")
 
 df_rv <- bind_rows(rv_stan, rv_optim)
-g_comparison_reporting_value <- draw_dcg(df_rv, c(0.4, 1), 0.8)
+g_comparison_reporting_value <- draw_dcg(df_rv, c(0.5, 1), 0.8)
 
-ggsave("./plots/comparison_reporting_value.pdf", dpi = "print", height = 3,
+ggsave("./plots/A_comparison_reporting_value.pdf", dpi = "print", height = 3,
        width = 8)
 print(g_comparison_reporting_value)
 ```
@@ -1961,13 +2083,13 @@ ggplot(R_nought_est, aes(x = matrix, y = R0)) +
   geom_point() +
   geom_errorbar(aes(ymin = lower.bound, ymax = upper.bound), width =.1) +
   geom_hline(yintercept = output_sp$theoretical_R0, linetype = "dashed") +
-  scale_y_continuous(limits = c(2, 3.5)) +
+  scale_y_continuous(limits = c(2, 3)) +
   facet_grid(method ~ scenario) +
   theme_test() +
   theme(legend.text  = element_text(size = 3)) +
   labs(x = "Structure", y = bquote(R[0]))
 
-ggsave("./plots/R0comparison.pdf", dpi = "print", height = 5,
+ggsave("./plots/A_R0comparison.pdf", dpi = "print", height = 5,
        width = 8)
 ```
 
@@ -2010,21 +2132,21 @@ K_error_df <- map_df(K_error_list, function(df) {
 
 ggplot(K_error_df, aes(x = matrix, y = SMAPE)) +
   geom_lollipop(aes(colour = is_min)) +
-  scale_y_continuous(limits = c(0, 10)) +
+  scale_y_continuous(limits = c(0, 2)) +
   coord_flip() +
   geom_text(aes(label = round(SMAPE, 2),
-                colour = is_min), nudge_y = 1, size = 3) +
+                colour = is_min), nudge_y = 0.2, size = 3) +
   scale_colour_manual(values = c("grey", "steelblue")) +
   facet_grid(scenario ~ method) +
   theme_test() +
   theme(legend.position = "none") +
   labs(x = "Structure")
 
-ggsave("./plots/WAIFWcomparison.pdf", dpi = "print", height = 5,
+ggsave("./plots/A_WAIFWcomparison.pdf", dpi = "print", height = 5,
        width = 8)
 ```
 
-# Computational time
+## Computational time
 
 ```{r}
 times <- map_dbl(time_optim_pfr, calculate_time)
