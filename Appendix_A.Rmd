@@ -66,7 +66,7 @@ source("./R/Metrics.R")
 
 ## Parameters
 
-## Average contacts per age group
+## Average contacts per age group per day
 
 ```{r, fig.height = 4.5, fig.width = 5, fig.align= "center"}
 source("./R/synthetic_params.R")
@@ -127,7 +127,7 @@ inc_df <- bind_rows(prf_df, und_df)
 
 g_timeseries <- ggplot(inc_df, aes(x = time, y = y)) +
   geom_col(aes(group = Scenario, fill = Scenario, linetype = Scenario),
-           alpha = 0.75) +
+           alpha = 0.75, position = "identity") +
   scale_fill_manual(values = c("#a0e3b7", "#20502e")) +
   scale_y_continuous(labels =  comma) +
   theme_test() +
