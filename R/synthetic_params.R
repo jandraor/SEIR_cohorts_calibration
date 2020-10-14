@@ -15,7 +15,8 @@ produce_synthetic_params <- function(pop_size, age_limits) {
   
   dimnames(raw_M_matrix) <- list(raw_age_cohorts, raw_age_cohorts)
   
-  g_raw_M_matrix <- draw_WAIFW(raw_M_matrix, "Finland's social contact matrix")
+  g_raw_M_matrix <- draw_WAIFW(raw_M_matrix, "Finland's social contact matrix",
+                               precision = 1)
 
   
   # Contact matrix object
@@ -41,7 +42,9 @@ produce_synthetic_params <- function(pop_size, age_limits) {
   # Normalised age-specific contact rate matrix
   symmetric_C_matrix <- corrected_M_matrix / agg_pop$proportion
   
-  g_c_M_matrix <- draw_WAIFW(corrected_M_matrix, "Aggregated contacts")
+  g_c_M_matrix <- draw_WAIFW(corrected_M_matrix, 
+                             "Contact rates corrected for reciprocity",
+                             precision = 1)
   
   infectious_period <- 2 # days  
   infectivity       <- 0.1

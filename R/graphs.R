@@ -127,7 +127,8 @@ draw_WAIFW <- function(WAIFW, subtitle, interval_df = NULL,
                               fill = value)) + 
     geom_tile() +
     scale_fill_gradient(low = "lightblue", high = "darkblue") +
-    geom_text(aes(label = round(value, precision)), colour = "white", 
+    geom_text(aes(label = format(round(value, digits = precision), 
+                                 nsmall = precision) ), colour = "white", 
               size = 2) +
     theme_minimal() + 
     labs(y ="", x = "",subtitle = subtitle) +
@@ -233,7 +234,7 @@ draw_dcg <- function(df, limits, actual_val) {
     facet_wrap(~ method) +
     theme_test() +
     theme(legend.text  = element_text(size = 3)) +
-    labs(x = "Structure", y = "Reporting probability")
+    labs(x = "Variant", y = "Reporting probability")
 }
 
 # Compare time-series to data points

@@ -8,8 +8,8 @@ header-includes:
   - \usepackage{booktabs}
 ---
 
-This appendix aims to illustrate the process of calibrating five variants of a
-disaggregated SEIR model to synthetic data via the Nelder-Mead algorithm and 
+This appendix aims to illustrate the process of calibrating five variants of an
+age-structured SEIR model to synthetic data via the Nelder-Mead algorithm and 
 Hamiltonian Monte Carlo. The first section shows the inputs and outputs of
 the procedure of synthetic data generation. The second section presents the 
 results of the calibration.
@@ -18,7 +18,7 @@ results of the calibration.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                      cache = TRUE)
+                      cache = FALSE)
 
 ## WORKAROUND: https://github.com/rstudio/rstudio/issues/6692
 ## Revert to 'sequential' setup of PSOCK cluster in RStudio Console on macOS and R 4.0.0
@@ -59,6 +59,9 @@ source("./R/optimise_SEIR.R")
 source("./R/summaries_utils.R")
 source("./R/summarise_results.R")
 source("./R/Metrics.R")
+
+# Figure counter
+fc <- 0
 ```
 
 
@@ -77,27 +80,77 @@ age_limits <- c(0, 5, 15, 45)
 output_sp <- produce_synthetic_params(pop_size, age_limits)
 pop_df    <- output_sp$population
 pop_size  <- sum(pop_df$population)
-output_sp$g_original_contacts
+
+cpt <- "Finland's daily average conversational contacts by age group. 
+Source: POLYMOD"
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+output_sp$g_original_contacts +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 ##  Aggregated average contacts per age group - Corrected for reciprocity
 
-```{r, fig.height = 2.5, fig.width = 3, fig.align= "center"}
-output_sp$g_c_M_matrix
+Let $m'_{ij}$ define the mean number of contacts per time unit from 
+one individual in age class i with individuals in age class j reported in the
+POLYMOD's study. Due to variation in the sample from which the contact matrix is
+obtained, the reciprocity condition -*the total number of contacts from age 
+class $j$ to age class $i$ must be equal to the total number of contacts from 
+age class $i$ to age class $j$*- is not fulfilled exactly. For this reason, we 
+correct the age-specific contact rate for reciprocity ($m_{ij}$) from the average
+of the total number of contacts between the two age classes:
+
+\begin{equation}
+ m_{ij} = \frac{m'_{ij} N_j + m'_{ji} N_i}{2 N_j}
+\end{equation}
+
+By doing so, we satisfy:
+
+\begin{equation}
+ m_{ij}N_j = m_{ji} N_i
+\end{equation}
+
+```{r, fig.align= "center"}
+cpt <- "Finland's daily average conversational contacts disaggregated in four age cohorts. The raw data has been\ncorrected for reciprocity following equation 1. Source: POLYMOD"
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+output_sp$g_c_M_matrix +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 
 
 ##  Synthetic WAIFW (B) & synthetic scaled WAIFW (K)
 
-```{r g_synWAIFW, fig.height = 2.5, fig.width = 5, fig.align= "center"}
+```{r g_synWAIFW, fig.height = 4.5, fig.width = 7, fig.align= "center"}
+
+cpt <- "Left matrix: Rates at which two specific individuals come into effective contact by age group.\n  Also known as the WAIFW matrix.\nRight matrix: WAIFW matrix scaled up by the population size (N = 10,000)."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
 grey_actual_K <- output_sp$g_K_matrix +
   scale_fill_gradient(low = "#D3D3D3", high = "#696969") +
   labs(subtitle = "Actual K")
 
 actual_K <- output_sp$K_matrix
 
-ggarrange(output_sp$g_syn_WAIFW, output_sp$g_K_matrix)
+g_syn_WAIFW <- output_sp$g_syn_WAIFW +
+  theme(plot.margin = unit(c(1, 1, -2, 1), "cm"))
+
+g_K_matrix <- output_sp$g_K_matrix +
+  theme(plot.margin = unit(c(1, 1, -2, 1), "cm"))
+
+ggarrange(g_syn_WAIFW, g_K_matrix,
+          bottom = text_grob(cpt, hjust = 0, size = 10, x = 0, face = "italic"))
 ```
 
 ## Synthetic incidence from 4-cohort SEIR
@@ -113,7 +166,15 @@ output_gsi         <- generate_synthetic_incidence(output_sp, stop_time,
 length_data        <- stop_time
 data_list_prf      <- output_gsi$data_list$prf
 data_list_und      <- output_gsi$data_list$und
-output_gsi$g_incidences
+
+cpt <- "True daily new cases of influenza by age group"
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+output_gsi$g_incidences +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 ## Reporting scenarios
@@ -135,9 +196,17 @@ g_timeseries <- ggplot(inc_df, aes(x = time, y = y)) +
   theme(legend.position = "bottom") +
   labs(x = "Days since first case detected", y = "Incidence [Cases / Day]") 
 
-print(g_timeseries)
+cpt <- "Reported daily new cases of influenza by age group and scenario."
 
-ggsave("./plots/A_incidence_reports.pdf", dpi = "print", height = 5, width = 8)
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_timeseries + labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
+
+ggsave("./plots/A_incidence_reports.pdf", plot = g_timeseries ,dpi = "print", 
+       height = 5, width = 8)
 ```
 
 
@@ -149,11 +218,7 @@ ggsave("./plots/A_incidence_reports.pdf", dpi = "print", height = 5, width = 8)
 ### Feasible permutations
 
 If we assume that there are exactly four separate parameters in a WAIFW square 
-matrix of size four, equation 1 defines the number of possible permutations. The
-first term represents the entire universe of permutations in the the square
-matrix with up to four separate parameters. The second term removes the permutations with
-up to three parameters. Nevetheless, this operation double-counts a set permutations with
-common elements. Therefore, the last two operators restore those elements.
+matrix of size four, equation 3 defines the number of possible permutations. 
 
 \begin{equation}
  4 ^{16} \binom{4}{4} - 3 ^{16} \binom{4}{3} + 2^{16} \binom{4}{2} - 1^{16} \binom{4}{1}
@@ -230,8 +295,16 @@ g_cm <- map2(cm_list, titles, function(cm, gtitle) {
     theme(legend.position = "none")
 })
 
+cpt <- 
+  "Variants of scaled WAIFW matrices. \n Source: Kannan & Farrington (2005)"
 
-g_matrices <- grid.arrange(g_cm[[1]], g_cm[[2]], g_cm[[3]], g_cm[[4]], g_cm[[5]], ncol = 2)
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+
+g_matrices <- grid.arrange(g_cm[[1]], g_cm[[2]], g_cm[[3]], g_cm[[4]], 
+                           g_cm[[5]], ncol = 2,
+                           bottom = text_grob(cpt, hjust = 0, size = 10, x = 0, face = "italic"))
 
 ggsave("./plots/g_matrices.png", dpi = "print", height = 5, width = 5, 
        plot = g_matrices)
@@ -320,26 +393,59 @@ top_optim_A          <- summaries_optim_A[top_id]
 summary_optim[[mtx]] <- summaries_optim_A[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_A, "g_comparison")
-do.call("grid.arrange", c(comparison_graphs, ncol = 2))
+
+
+cpt <- 
+  "Calibration of SEIR A via Nelder-Mead to the perfect information incidence. Each panel shows the results for the six initialisations with the highest likelihood. \nIn these panels, the results are disaggregated by age. Grey lines represent the synthetic data. Blue lines represent the incidence estimated by the fitting model.\nThe title of each panel corresponds to the initialisation id and the basic reproductive number calculated from the calibration."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = comparison_graphs, ncol = 2, bottom = tg))
 ```
 
 ```{r, fig.height = 7}
+cpt <- 
+  "Estimated scaled WAIFW matrices from SEIR A. Each panel shows the results for the six initialisations with the highest likelihood. \nThe title of each panel corresponds to the initialisation id."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
 K_matrix <- purrr::map(top_optim_A , "g_K_hat")
-do.call("grid.arrange", K_matrix)
+tg       <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = K_matrix, ncol = 2, bottom = tg))
 ```
 \newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_A, top_id)
-print(g_ts_errors)
+
+cpt <- "Accuracy measurements of the estimated incidences from SEIR A's six initialisations with the \nhighest likelihood."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_ts_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-
+\hfill
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_A, output_sp$theoretical_R0, 
                                 top_id) 
-print(g_errors)
+cpt <- "Accuracy of the epidemiological quantities (scaled WAIFW matrix, basic reproduction number)\nestimated from SEIR A's six initialisations with the highest likelihood. Text within the parentheses indicates the\nspecific accuracy measure."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -393,26 +499,59 @@ top_optim_B          <- summaries_optim_B[top_id]
 summary_optim[[mtx]] <- summaries_optim_B[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_B, "g_comparison")
-do.call("grid.arrange", c(comparison_graphs, ncol = 2))
+
+cpt <- 
+  "Calibration of SEIR B via Nelder-Mead to the perfect information incidence. Each panel shows the results for the six initialisations with the highest likelihood. \nIn these panels, the results are disaggregated by age. Grey lines represent the synthetic data. Blue lines represent the incidence estimated by the fitting model.\nThe title of each panel corresponds to the initialisation id and the basic reproductive number calculated from the calibration."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = comparison_graphs, ncol = 2, bottom = tg))
 ```
 
 ```{r, fig.height = 7}
+cpt <- 
+  "Estimated scaled WAIFW matrices from SEIR B. Each panel shows the results for the six initialisations with the highest likelihood. \nThe title of each panel corresponds to the initialisation id."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
 K_matrix <- purrr::map(top_optim_B , "g_K_hat")
-do.call("grid.arrange", K_matrix)
+tg       <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = K_matrix, ncol = 2, bottom = tg))
 ```
 
 \newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_B, top_id)
-print(g_ts_errors)
+
+cpt <- "Accuracy measurements of the estimated incidences from SEIR B's six initialisations with the \nhighest likelihood."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_ts_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
+\hfill
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_B, output_sp$theoretical_R0, 
                                 top_id) 
-print(g_errors)
+cpt <- "Accuracy of the epidemiological quantities (scaled WAIFW matrix, basic reproduction number)\nestimated from SEIR B's six initialisations with the highest likelihood. Text within the parentheses indicates the\nspecific accuracy measure."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -465,26 +604,59 @@ top_optim_C          <- summaries_optim_C[top_id]
 summary_optim[[mtx]] <- summaries_optim_C[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_C, "g_comparison")
-do.call("grid.arrange", c(comparison_graphs, ncol = 2))
+
+cpt <- 
+  "Calibration of SEIR C via Nelder-Mead to the perfect information incidence. Each panel shows the results for the six initialisations with the highest likelihood. \nIn these panels, the results are disaggregated by age. Grey lines represent the synthetic data. Blue lines represent the incidence estimated by the fitting model.\nThe title of each panel corresponds to the initialisation id and the basic reproductive number calculated from the calibration."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = comparison_graphs, ncol = 2, bottom = tg))
 ```
 
 ```{r, fig.height = 7}
+cpt <- 
+  "Estimated scaled WAIFW matrices from SEIR C. Each panel shows the results for the six initialisations with the highest likelihood. \nThe title of each panel corresponds to the initialisation id."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
 K_matrix <- purrr::map(top_optim_C , "g_K_hat")
-do.call("grid.arrange", K_matrix)
+tg       <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = K_matrix, ncol = 2, bottom = tg))
 ```
 
 \newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_C, top_id)
-print(g_ts_errors)
+
+cpt <- "Accuracy measurements of the estimated incidences from SEIR C's six initialisations with the \nhighest likelihood."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_ts_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
+\hfill
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_C, output_sp$theoretical_R0, 
                                 top_id) 
-print(g_errors)
+cpt <- "Accuracy of the epidemiological quantities (scaled WAIFW matrix, basic reproduction number)\nestimated from SEIR C's six initialisations with the highest likelihood. Text within the parentheses indicates the\nspecific accuracy measure."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -537,7 +709,15 @@ top_optim_D          <- summaries_optim_D[top_id]
 summary_optim[[mtx]] <- summaries_optim_D[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_D, "g_comparison")
-do.call("grid.arrange", c(comparison_graphs, ncol = 2))
+
+cpt <- 
+  "Calibration of SEIR D via Nelder-Mead to the perfect information incidence. Each panel shows the results for the six initialisations with the highest likelihood. \nIn these panels, the results are disaggregated by age. Grey lines represent the synthetic data. Blue lines represent the incidence estimated by the fitting model.\nThe title of each panel corresponds to the initialisation id and the basic reproductive number calculated from the calibration."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = comparison_graphs, ncol = 2, bottom = tg))
 
 g_for_plot <- do.call("arrangeGrob", c(comparison_graphs, ncol = 2))
 ggsave(file = "./plots/A_matrix_D_ts_optim.pdf", g_for_plot, dpi = "print",
@@ -545,22 +725,46 @@ ggsave(file = "./plots/A_matrix_D_ts_optim.pdf", g_for_plot, dpi = "print",
 ```
 
 ```{r, fig.height = 7}
-K_matrix <- purrr::map(top_optim_D , "g_K_hat")
-do.call("grid.arrange", K_matrix)
+cpt <- 
+  "Estimated scaled WAIFW matrices from SEIR D. Each panel shows the results for the six initialisations with the highest likelihood. \nThe title of each panel corresponds to the initialisation id."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+K_matrix <- purrr::map(top_optim_D, "g_K_hat")
+tg       <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = K_matrix, ncol = 2, bottom = tg))
 ```
 
 \newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_D, top_id)
-print(g_ts_errors)
+
+cpt <- "Accuracy measurements of the estimated incidences from SEIR D's six initialisations with the \nhighest likelihood."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_ts_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_D, output_sp$theoretical_R0, 
                                 top_id) 
-print(g_errors)
+cpt <- "Accuracy of the epidemiological quantities (scaled WAIFW matrix, basic reproduction number)\nestimated from SEIR D's six initialisations with the highest likelihood. Text within the parentheses indicates the\nspecific accuracy measure."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -614,26 +818,60 @@ top_optim_sym        <- summaries_optim_sym[top_id]
 summary_optim[[mtx]] <- summaries_optim_sym[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_sym, "g_comparison")
-do.call("grid.arrange", c(comparison_graphs, ncol = 2))
+
+cpt <- 
+  "Calibration of SEIR S via Nelder-Mead to the perfect information incidence. Each panel shows the results for the six initialisations with the highest likelihood. \nIn these panels, the results are disaggregated by age. Grey lines represent the synthetic data. Blue lines represent the incidence estimated by the fitting model.\nThe title of each panel corresponds to the initialisation id and the basic reproductive number calculated from the calibration."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = comparison_graphs, ncol = 2, bottom = tg))
 ```
 
 ```{r, fig.height = 7}
+cpt <- 
+  "Estimated scaled WAIFW matrices from SEIR S. Each panel shows the results for the six initialisations with the highest likelihood. \nThe title of each panel corresponds to the initialisation id."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
 K_matrix <- purrr::map(top_optim_sym, "g_K_hat")
-do.call("grid.arrange", K_matrix)
+tg       <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = K_matrix, ncol = 2, bottom = tg))
 ```
 
 \newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_sym, top_id)
-print(g_ts_errors)
+
+cpt <- "Accuracy measurements of the estimated incidences from SEIR S's six initialisations with the \nhighest likelihood."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_ts_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
+\hfill
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_sym, output_sp$theoretical_R0, 
                                 top_id) 
-print(g_errors)
+
+cpt <- "Accuracy of the epidemiological quantities (scaled WAIFW matrix, basic reproduction number)\nestimated from SEIR S's six initialisations with the highest likelihood. Text within the parentheses indicates the\nspecific accuracy measure."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -678,6 +916,8 @@ names(time_stan_pfr) <- m_index
 
 #### Matrix A
 
+\hfill
+
 ```{r stan_fit_A}
 mtx          <- "A"
 filename     <- str_glue("./Stan_files/Det_{mtx}.stan")
@@ -702,6 +942,7 @@ output                <- run_stan(filename, var_cache, cache_file, arg_list)
 stan_fit_A            <- output$stan_fit
 time_stan_pfr[[mtx]]  <- output$time
 ```
+
 \hfill
 
 ```{r}
@@ -713,8 +954,9 @@ rownames(sum_mtx) <- o_SEIR_A$params
 kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```
 
+\hfill
 
-```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+```{r, fig.height = 2.7, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.305, ypos_mean = 29, ypos_median = 26,
                    text_size = 2, ypos_interval = 23,
                    title = "Matrix A - R0", xlabel = "")
@@ -727,26 +969,64 @@ summary_stan[[mtx]] <- summarise_results(stan_fit_A, conceptual_matrix_A,
 pred_K <- summary_stan[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR A via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
+
+\hfill
 
 ```{r}
-summary_stan[[mtx]]$summary_k$g_pairs
+cpt <- "Posterior distribution estimated from SEIR A. The diagonal shows the posterior marginal\ndistributions. In the lower triangular part, it is presented the joint posterior distribution of each possible\ncombination of two parameters. The upper triangular part shows the correlation among parameters."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$summary_k$g_pairs +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
+\hfill
 
-```{r g_ts_stan_A, fig.height = 2.5, fig.align = 'center'}
-summary_stan[[mtx]]$ts_summary$g_comparison
+```{r g_ts_stan_A, fig.align = 'center'}
+cpt <- "SEIR A's incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r, fig.height = 2.5, fig.width = 4, fig.align= 'center'}
-summary_stan[[mtx]]$R_0$g
+\hfill
+
+```{r, fig.height = 3.5, fig.width = 5, fig.align= 'center'}
+
+cpt <- "Predicted basic reproduction number from the calibration of SEIR A."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$R_0$g +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 
 \newpage
 
 #### Matrix B
+
+\hfill
 
 ```{r stan_fit_B}
 mtx          <- "B"
@@ -783,7 +1063,9 @@ rownames(sum_mtx) <- o_SEIR_B$params
 kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```
 
-```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+\hfill
+
+```{r, fig.height = 2.7, fig.width = 5.5, fig.align = 'center'}
 source("./R/summarise_results.R")
 
 specs_list <- list(x_pos = 2.275, ypos_mean = 35, ypos_median = 31,
@@ -799,24 +1081,63 @@ summary_stan[[mtx]] <- summarise_results(stan_fit_B, conceptual_matrix_B,
 pred_K <- summary_stan[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR B via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
+
+\hfill
 
 ```{r}
-summary_stan[[mtx]]$summary_k$g_pairs
+cpt <- "Posterior distribution estimated from SEIR B. The diagonal shows the posterior marginal\ndistributions. In the lower triangular part, it is presented the joint posterior distribution of each possible\ncombination of two parameters. The upper triangular part shows the correlation among parameters."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$summary_k$g_pairs +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r g_ts_stan_B, fig.height = 2.5, fig.align = 'center'}
-summary_stan[[mtx]]$ts_summary$g_comparison
+\hfill
+
+```{r g_ts_stan_B, fig.align = 'center'}
+cpt <- "SEIR B's incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r, fig.height = 2.5, fig.width = 4, fig.align= 'center'}
-summary_stan[[mtx]]$R_0$g
+\hfill
+
+```{r, fig.height = 3.5, fig.width = 5, fig.align= 'center'}
+
+cpt <- "Predicted basic reproduction number from the calibration of SEIR B."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$R_0$g +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
 
 #### Matrix C
+
+\hfill
 
 ```{r stan_fit_C}
 mtx          <- "C"
@@ -853,7 +1174,9 @@ rownames(sum_mtx) <- o_SEIR_C$params
 kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```
 
-```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+\hfill
+
+```{r, fig.height = 2.7, fig.width = 5.5, fig.align = 'center'}
 source("./R/summarise_results.R")
 
 specs_list <- list(x_pos = 2.315, ypos_mean = 36, ypos_median = 32,
@@ -869,24 +1192,63 @@ summary_stan[[mtx]] <- summarise_results(stan_fit_C, conceptual_matrix_C,
 pred_K <- summary_stan[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR C via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
+
+\hfill
 
 ```{r}
-summary_stan[[mtx]]$summary_k$g_pairs
+cpt <- "Posterior distribution estimated from SEIR C. The diagonal shows the posterior marginal\ndistributions. In the lower triangular part, it is presented the joint posterior distribution of each possible\ncombination of two parameters. The upper triangular part shows the correlation among parameters."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$summary_k$g_pairs +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r g_ts_stan_C, fig.height = 2.5, fig.align = 'center'}
-summary_stan[[mtx]]$ts_summary$g_comparison
+\hfill
+
+```{r g_ts_stan_C, fig.align = 'center'}
+cpt <- "SEIR C's incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r, fig.height = 2.5, fig.width = 4, fig.align= 'center'}
-summary_stan[[mtx]]$R_0$g
+\hfill
+
+```{r, fig.height = 3.5, fig.width = 5, fig.align= 'center'}
+
+cpt <- "Predicted basic reproduction number from the calibration of SEIR C."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$R_0$g +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
 
 #### Matrix D
+
+\hfill
 
 ```{r stan_fit_D}
 mtx          <- "D"
@@ -923,8 +1285,9 @@ rownames(sum_mtx) <- o_SEIR_D$params
 kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```
 
+\hfill
 
-```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+```{r, fig.height = 2.7, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.31, ypos_mean = 28, ypos_median = 26,
                      text_size = 2, ypos_interval = 24,
                      title = "Matrix D - R0", xlabel = "")
@@ -938,18 +1301,56 @@ summary_stan[[mtx]] <- summarise_results(stan_fit_D, conceptual_matrix_D,
 pred_K <- summary_stan[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR D via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
+
+\hfill
 
 ```{r}
-summary_stan[[mtx]]$summary_k$g_pairs
+cpt <- "Posterior distribution estimated from SEIR D. The diagonal shows the posterior marginal\ndistributions. In the lower triangular part, it is presented the joint posterior distribution of each possible\ncombination of two parameters. The upper triangular part shows the correlation among parameters."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$summary_k$g_pairs +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r g_ts_stan_D, fig.height = 2.5, fig.align = 'center'}
-summary_stan[[mtx]]$ts_summary$g_comparison
+\hfill
+
+```{r g_ts_stan_D, fig.align = 'center'}
+cpt <- "SEIR D's incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
-```{r, fig.height = 2.5, fig.width = 4, fig.align= 'center'}
-summary_stan[[mtx]]$R_0$g
+
+\hfill
+
+```{r, fig.height = 3.5, fig.width = 5, fig.align= 'center'}
+
+cpt <- "Predicted basic reproduction number from the calibration of SEIR D."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$R_0$g +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 
@@ -971,7 +1372,15 @@ g_for_plot <- mcmc_trace(posterior, pars = c("kappa[11]", "kappa[22]",
            n_warmup = 1000) +
   theme_minimal()
 
-print(g_for_plot)
+cpt <- "SEIR D's trace plot. Panels corresponds to the four separate parameters in this configuration.\nEach paneldisplays four Markov chains. The shaded area indicates the warm-up period."  
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_for_plot +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 
 ggsave(file = "./plots/A_traceplot_D.pdf", g_for_plot, dpi = "print",
        height = 4, width = 6)
@@ -1017,7 +1426,9 @@ rownames(sum_mtx) <- o_SEIR_sym$params
 kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```
 
-```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+\hfill
+
+```{r, fig.height = 2.7, fig.width = 5.5, fig.align = 'center'}
 source("./R/summarise_results.R")
 
 specs_list <- list(x_pos = 2.31, ypos_mean = 30, ypos_median = 26,
@@ -1033,22 +1444,59 @@ summary_stan[[mtx]] <- summarise_results(stan_fit_sym, conceptual_matrix_sym,
 pred_K <- summary_stan[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-g_for_plot <- grid.arrange(pred_K, grey_actual_K, ncol = 2)
+g_for_plot <- arrangeGrob(pred_K, grey_actual_K, ncol = 2)
 
-ggsave(file = "./plots/A_WAIFW_sym_HMC.pdf", g_for_plot, dpi = "print",
+ggsave(file = "./plots/A_WAIFW_sym_HMC.pdf", plot = g_for_plot, dpi = "print",
        height = 3, width = 6)
+
+cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR S via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
 
 ```{r}
-summary_stan[[mtx]]$summary_k$g_pairs
+cpt <- "Posterior distribution estimated from SEIR S. The diagonal shows the posterior marginal\ndistributions. In the lower triangular part, it is presented the joint posterior distribution of each possible\ncombination of two parameters. The upper triangular part shows the correlation among parameters."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$summary_k$g_pairs +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r g_ts_stan_sym, fig.height = 2.5, fig.align = 'center'}
-summary_stan[[mtx]]$ts_summary$g_comparison
+\hfill
+
+```{r g_ts_stan_S, fig.align = 'center'}
+cpt <- "SEIR S's incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r, fig.height = 2.5, fig.width = 4, fig.align= 'center'}
-summary_stan[[mtx]]$R_0$g
+\hfill
+
+```{r, fig.height = 3.5, fig.width = 5, fig.align= 'center'}
+
+cpt <- "Predicted basic reproduction number from the calibration of SEIR S."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan[[mtx]]$R_0$g +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 ### Incidence data goodness of fit
@@ -1087,18 +1535,33 @@ errors_ts_stan <- data.frame(matrix = m_index,
 ```{r, fig.height = 3}
 error_ts <- bind_rows(errors_ts_optim, errors_ts_stan)
 
-ggplot(error_ts, aes(x = matrix, y = MASE)) +
+
+
+g <- ggplot(error_ts, aes(x = matrix, y = MASE)) +
   geom_lollipop(aes(colour = is_min)) +
   scale_colour_manual(values = c("grey", "steelblue")) +
   coord_flip() +
   geom_text(aes(label = round(MASE, 2), colour = is_min), nudge_y = 0.2, 
             size = 3) +
   facet_wrap(~ method) +
+  labs(x = "Variant") +
   theme_test() +
   theme(legend.position = "none")
 
-ggsave("./plots/A_incidence_fit_perfect_info.pdf", dpi = "print", height = 3,
-       width = 8)
+
+
+ggsave("./plots/A_incidence_fit_perfect_info.pdf", plot = g, dpi = "print",
+       height = 3, width = 8)
+
+cpt <- "Accuracy of estimated incidences by model variant and calibration method."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+labs(caption = cpt) +
+theme(plot.caption = element_text(hjust = 0, face= "italic"),
+      plot.caption.position =  "plot")
 ```
 
 ### Likelihood
@@ -1122,7 +1585,7 @@ log_liks_stan <- data.frame(matrix  = m_index,
 
 log_liks_df <- bind_rows(log_liks_optim, log_liks_stan)
 
-ggplot(log_liks_df , aes(x = matrix, y = log_lik)) +
+g <- ggplot(log_liks_df , aes(x = matrix, y = log_lik)) +
   geom_point(aes(colour = is_max)) +
   scale_colour_manual(values = c("grey", "steelblue")) +
   coord_flip() +
@@ -1132,7 +1595,17 @@ ggplot(log_liks_df , aes(x = matrix, y = log_lik)) +
   theme_test() +
   theme(legend.position = "none") +
   labs(y = "Log-likelihood",
-       x = "Structure")
+       x = "Variant")
+
+cpt <- "Log-likelihood by model variant and calibration method. For HMC, displayed values correspond\nto mean estimates from Stan's samples."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+labs(caption = cpt) +
+theme(plot.caption = element_text(hjust = 0, face= "italic"),
+      plot.caption.position =  "plot")
 ```
 
 
@@ -1222,25 +1695,59 @@ top_optim_A              <- summaries_optim_und_A[top_id]
 summary_und_optim[[mtx]] <- summaries_optim_und_A[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_A, "g_comparison")
-do.call("grid.arrange", c(comparison_graphs, ncol = 2))
+
+cpt <- 
+  "Calibration of SEIR A via Nelder-Mead to the underreported incidence. Each panel shows the results for the six initialisations with the highest likelihood. \nIn these panels, the results are disaggregated by age. Grey lines represent the synthetic data. Blue lines represent the incidence estimated by the fitting model.\nThe title of each panel corresponds to the initialisation id and the basic reproductive number calculated from the calibration."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = comparison_graphs, ncol = 2, bottom = tg))
 ```
+
 ```{r, fig.height = 7}
-K_matrix <- purrr::map(top_optim_A, "g_K_hat")
-do.call("grid.arrange", K_matrix)
+cpt <- 
+  "Estimated scaled WAIFW matrices from SEIR A. Each panel shows the results for the six initialisations with the highest likelihood. \nThe title of each panel corresponds to the initialisation id."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+K_matrix <- purrr::map(top_optim_A , "g_K_hat")
+tg       <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = K_matrix, ncol = 2, bottom = tg))
 ```
 
 \newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_A, top_id)
-print(g_ts_errors)
+
+cpt <- "Accuracy measurements of the estimated incidences from SEIR A's six initialisations with the \nhighest likelihood."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_ts_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
+\hfill
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_A, output_sp$theoretical_R0, 
                                 top_id) 
-print(g_errors)
+cpt <- "Accuracy of the epidemiological quantities (scaled WAIFW matrix, basic reproduction number)\nestimated from SEIR A's six initialisations with the highest likelihood. Text within the parentheses indicates the\nspecific accuracy measure."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -1298,26 +1805,58 @@ top_optim_B              <- summaries_optim_und_B[top_id]
 summary_und_optim[[mtx]] <- summaries_optim_und_B[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_B, "g_comparison")
-do.call("grid.arrange", c(comparison_graphs, ncol = 2))
+
+cpt <- 
+  "Calibration of SEIR B via Nelder-Mead to the underreported incidence. Each panel shows the results for the six initialisations with the highest likelihood. \nIn these panels, the results are disaggregated by age. Grey lines represent the synthetic data. Blue lines represent the incidence estimated by the fitting model.\nThe title of each panel corresponds to the initialisation id and the basic reproductive number calculated from the calibration."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = comparison_graphs, ncol = 2, bottom = tg))
 ```
 
 ```{r, fig.height = 7}
+cpt <- 
+  "Estimated scaled WAIFW matrices from SEIR B. Each panel shows the results for the six initialisations with the highest likelihood. \nThe title of each panel corresponds to the initialisation id."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
 K_matrix <- purrr::map(top_optim_B, "g_K_hat")
-do.call("grid.arrange", K_matrix)
+tg       <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = K_matrix, ncol = 2, bottom = tg))
 ```
 
 \newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_B, top_id)
-print(g_ts_errors)
+
+cpt <- "Accuracy measurements of the estimated incidences from SEIR B's six initialisations with the \nhighest likelihood."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_ts_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_B, output_sp$theoretical_R0, 
                                 top_id) 
-print(g_errors)
+cpt <- "Accuracy of the epidemiological quantities (scaled WAIFW matrix, basic reproduction number)\nestimated from SEIR B's six initialisations with the highest likelihood. Text within the parentheses indicates the\nspecific accuracy measure."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -1373,25 +1912,58 @@ top_optim_C              <- summaries_optim_und_C[top_id]
 summary_und_optim[[mtx]] <- summaries_optim_und_C[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_C, "g_comparison")
-do.call("grid.arrange", c(comparison_graphs, ncol = 2))
+
+cpt <- 
+  "Calibration of SEIR C via Nelder-Mead to the underreported incidence. Each panel shows the results for the six initialisations with the highest likelihood. \nIn these panels, the results are disaggregated by age. Grey lines represent the synthetic data. Blue lines represent the incidence estimated by the fitting model.\nThe title of each panel corresponds to the initialisation id and the basic reproductive number calculated from the calibration."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = comparison_graphs, ncol = 2, bottom = tg))
 ```
+
 ```{r, fig.height = 7}
+cpt <- 
+  "Estimated scaled WAIFW matrices from SEIR C. Each panel shows the results for the six initialisations with the highest likelihood. \nThe title of each panel corresponds to the initialisation id."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
 K_matrix <- purrr::map(top_optim_C, "g_K_hat")
-do.call("grid.arrange", K_matrix)
+tg       <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = K_matrix, ncol = 2, bottom = tg))
 ```
 
 \newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_C, top_id)
-print(g_ts_errors)
+
+cpt <- "Accuracy measurements of the estimated incidences from SEIR C's six initialisations with the \nhighest likelihood."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_ts_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_C, output_sp$theoretical_R0, 
                                 top_id) 
-print(g_errors)
+cpt <- "Accuracy of the epidemiological quantities (scaled WAIFW matrix, basic reproduction number)\nestimated from SEIR C's six initialisations with the highest likelihood. Text within the parentheses indicates the\nspecific accuracy measure."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 
@@ -1449,26 +2021,59 @@ top_optim_D              <- summaries_optim_und_D[top_id]
 summary_und_optim[[mtx]] <- summaries_optim_und_D[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_D, "g_comparison")
-do.call("grid.arrange", c(comparison_graphs, ncol = 2))
+
+cpt <- 
+  "Calibration of SEIR D via Nelder-Mead to the underreported incidence. Each panel shows the results for the six initialisations with the highest likelihood. \nIn these panels, the results are disaggregated by age. Grey lines represent the synthetic data. Blue lines represent the incidence estimated by the fitting model.\nThe title of each panel corresponds to the initialisation id and the basic reproductive number calculated from the calibration."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = comparison_graphs, ncol = 2, bottom = tg))
 ```
 
 ```{r, fig.height = 7}
+cpt <- 
+  "Estimated scaled WAIFW matrices from SEIR D. Each panel shows the results for the six initialisations with the highest likelihood. \nThe title of each panel corresponds to the initialisation id."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
 K_matrix <- purrr::map(top_optim_D, "g_K_hat")
-do.call("grid.arrange", K_matrix)
+tg       <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = K_matrix, ncol = 2, bottom = tg))
 ```
 
 \newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_D, top_id)
-print(g_ts_errors)
+
+cpt <- "Accuracy measurements of the estimated incidences from SEIR D's six initialisations with the \nhighest likelihood."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_ts_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
+\hfill
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_D, output_sp$theoretical_R0, 
                                 top_id) 
-print(g_errors)
+cpt <- "Accuracy of the epidemiological quantities (scaled WAIFW matrix, basic reproduction number)\nestimated from SEIR D's six initialisations with the highest likelihood. Text within the parentheses indicates the\nspecific accuracy measure."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -1524,26 +2129,58 @@ top_optim_sym            <- summaries_optim_und_sym[top_id]
 summary_und_optim[[mtx]] <- summaries_optim_und_sym[[bf_search$pos_best_fit]]
 
 comparison_graphs <- purrr::map(top_optim_sym, "g_comparison")
-do.call("grid.arrange", c(comparison_graphs, ncol = 2))
+cpt <- 
+  "Calibration of SEIR S via Nelder-Mead to the underreported incidence. Each panel shows the results for the six initialisations with the highest likelihood. \nIn these panels, the results are disaggregated by age. Grey lines represent the synthetic data. Blue lines represent the incidence estimated by the fitting model.\nThe title of each panel corresponds to the initialisation id and the basic reproductive number calculated from the calibration."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = comparison_graphs, ncol = 2, bottom = tg))
 ```
 
 ```{r, fig.height = 7}
+cpt <- 
+  "Estimated scaled WAIFW matrices from SEIR S. Each panel shows the results for the six initialisations with the highest likelihood. \nThe title of each panel corresponds to the initialisation id."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
 K_matrix <- purrr::map(top_optim_sym, "g_K_hat")
-do.call("grid.arrange", K_matrix)
+tg       <- text_grob(cpt, hjust = 0, size = 6, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = K_matrix, ncol = 2, bottom = tg))
 ```
 
 \newpage
 
 ```{r}
 g_ts_errors <- ts_errors(top_optim_sym, top_id)
-print(g_ts_errors)
+
+cpt <- "Accuracy measurements of the estimated incidences from SEIR S's six initialisations with the \nhighest likelihood."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_ts_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
+\hfill
 
 ```{r, fig.height = 2.5}
 g_errors <- draw_inits_comparison(top_optim_sym, output_sp$theoretical_R0, 
                                 top_id) 
-print(g_errors)
+cpt <- "Accuracy of the epidemiological quantities (scaled WAIFW matrix, basic reproduction number)\nestimated from SEIR S's six initialisations with the highest likelihood. Text within the parentheses indicates the\nspecific accuracy measure."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_errors +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 
@@ -1628,7 +2265,9 @@ rownames(sum_mtx) <- c("rho", o_SEIR_A_und$params)
 kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```
 
-```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
+\hfill
+
+```{r, fig.height = 2.7, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.315, ypos_mean = 20, ypos_median = 17,
                    text_size = 2, ypos_interval = 14,
                    title = "Matrix A - R0", xlabel = "")
@@ -1642,19 +2281,57 @@ summary_stan_und[[mtx]] <- summarise_results(stan_und_A, cm_list[[mtx]],
 pred_K <- summary_stan_und[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR A via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
+
+\hfill
 
 ```{r}
-summary_stan_und[[mtx]]$summary_k$g_pairs
+cpt <- "Posterior distribution estimated from SEIR A. The diagonal shows the posterior marginal\ndistributions. In the lower triangular part, it is presented the joint posterior distribution of each possible\ncombination of two parameters. The upper triangular part shows the correlation among parameters."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$summary_k$g_pairs +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r g_ts_stan_und_A, fig.height = 2.5, fig.align = 'center'}
-summary_stan_und[[mtx]]$ts_summary$g_comparison
+\hfill
+
+```{r g_ts_stan_und_A, fig.align = 'center'}
+cpt <- "SEIR A's incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
-```{r, fig.height = 2.5, fig.width = 4, fig.align= 'center'}
-summary_stan_und[[mtx]]$R_0$g
+
+\hfill
+
+```{r, fig.height = 3.5, fig.width = 5, fig.align= 'center'}
+cpt <- "Predicted basic reproduction number from the calibration of SEIR A."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$R_0$g +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
+
 \newpage
 
 #### Matrix B
@@ -1697,6 +2374,8 @@ rownames(sum_mtx) <- c("rho", o_SEIR_B_und$params)
 kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```
 
+\hfill
+
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.2775, ypos_mean = 32, ypos_median = 28,
                    text_size = 2, ypos_interval = 24,
@@ -1712,18 +2391,55 @@ summary_stan_und[[mtx]] <- summarise_results(stan_und_B, cm_list[[mtx]],
 pred_K <- summary_stan_und[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR B via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
+
+\hfill
 
 ```{r}
-summary_stan_und[[mtx]]$summary_k$g_pairs
+cpt <- "Posterior distribution estimated from SEIR B. The diagonal shows the posterior marginal\ndistributions. In the lower triangular part, it is presented the joint posterior distribution of each possible\ncombination of two parameters. The upper triangular part shows the correlation among parameters."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$summary_k$g_pairs +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r g_ts_stan_und_B, fig.height = 2.5, fig.align = 'center'}
-summary_stan_und[[mtx]]$ts_summary$g_comparison
+\hfill
+
+```{r g_ts_stan_und_B, fig.align = 'center'}
+cpt <- "SEIR B's incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
-```{r, fig.height = 2.5, fig.width = 4, fig.align= 'center'}
-summary_stan_und[[mtx]]$R_0$g
+
+\hfill
+
+```{r, fig.height = 3.5, fig.width = 5, fig.align= 'center'}
+cpt <- "Predicted basic reproduction number from the calibration of SEIR B."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$R_0$g +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -1768,6 +2484,7 @@ rownames(sum_mtx) <- c("rho", o_SEIR_C_und$params)
 kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```
 
+\hfill
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.317, ypos_mean = 30, ypos_median = 27,
                    text_size = 2, ypos_interval = 24,
@@ -1783,18 +2500,55 @@ summary_stan_und[[mtx]] <- summarise_results(stan_und_C, cm_list[[mtx]],
 pred_K <- summary_stan_und[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR C via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
+
+\hfill
 
 ```{r}
-summary_stan_und[[mtx]]$summary_k$g_pairs
+cpt <- "Posterior distribution estimated from SEIR C. The diagonal shows the posterior marginal\ndistributions. In the lower triangular part, it is presented the joint posterior distribution of each possible\ncombination of two parameters. The upper triangular part shows the correlation among parameters."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$summary_k$g_pairs +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r g_ts_stan_und_C, fig.height = 2.5, fig.align = 'center'}
-summary_stan_und[[mtx]]$ts_summary$g_comparison
+\hfill
+
+```{r g_ts_stan_und_C, fig.align = 'center'}
+cpt <- "SEIR C's incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
-```{r, fig.height = 2.5, fig.width = 4, fig.align= 'center'}
-summary_stan_und[[mtx]]$R_0$g
+
+\hfill
+
+```{r, fig.height = 3.5, fig.width = 5, fig.align= 'center'}
+cpt <- "Predicted basic reproduction number from the calibration of SEIR C."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$R_0$g +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -1839,8 +2593,10 @@ rownames(sum_mtx) <- c("rho", o_SEIR_D_und$params)
 kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```
 
+\hfill
+
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
-specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
+specs_list <- list(x_pos = 2.33, ypos_mean = 20, ypos_median = 17,
                    text_size = 2, ypos_interval = 14,
                    title = "Matrix D - R0", xlabel = "")
 
@@ -1854,18 +2610,55 @@ summary_stan_und[[mtx]] <- summarise_results(stan_und_D, cm_list[[mtx]],
 pred_K <- summary_stan_und[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR D via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
+
+\hfill
 
 ```{r}
-summary_stan_und[[mtx]]$summary_k$g_pairs
+cpt <- "Posterior distribution estimated from SEIR D. The diagonal shows the posterior marginal\ndistributions. In the lower triangular part, it is presented the joint posterior distribution of each possible\ncombination of two parameters. The upper triangular part shows the correlation among parameters."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$summary_k$g_pairs +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r g_ts_stan_und_D, fig.height = 2.5, fig.align = 'center'}
-summary_stan_und[[mtx]]$ts_summary$g_comparison
+\hfill
+
+```{r g_ts_stan_und_D, fig.align = 'center'}
+cpt <- "SEIR D's incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
-```{r, fig.height = 2.5, fig.width = 4, fig.align= 'center'}
-summary_stan_und[[mtx]]$R_0$g
+
+\hfill
+
+```{r, fig.height = 3.5, fig.width = 5, fig.align= 'center'}
+cpt <- "Predicted basic reproduction number from the calibration of SEIR D."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$R_0$g +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -1911,6 +2704,8 @@ rownames(sum_mtx) <- c("rho", o_SEIR_sym_und$params)
 kable(sum_mtx[, c("mean", "sd", "n_eff", "Rhat")], booktab = TRUE)
 ```
 
+\hfill
+
 ```{r, fig.height = 2.5, fig.width = 5.5, fig.align = 'center'}
 specs_list <- list(x_pos = 2.32, ypos_mean = 20, ypos_median = 17,
                    text_size = 2, ypos_interval = 14,
@@ -1926,18 +2721,55 @@ summary_stan_und[[mtx]] <- summarise_results(stan_und_sym, cm_list[[mtx]],
 pred_K <- summary_stan_und[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR S via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
+
+\hfill
 
 ```{r}
-summary_stan_und[[mtx]]$summary_k$g_pairs
+cpt <- "Posterior distribution estimated from SEIR S. The diagonal shows the posterior marginal\ndistributions. In the lower triangular part, it is presented the joint posterior distribution of each possible\ncombination of two parameters. The upper triangular part shows the correlation among parameters."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$summary_k$g_pairs +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
-```{r g_ts_stan_und_sym, fig.height = 2.5, fig.align = 'center'}
-summary_stan_und[[mtx]]$ts_summary$g_comparison
+\hfill
+
+```{r g_ts_stan_und_sym, fig.align = 'center'}
+cpt <- "SEIR S's incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
-```{r, fig.height = 2.5, fig.width = 4, fig.align= 'center'}
-summary_stan_und[[mtx]]$R_0$g
+
+\hfill
+
+```{r, fig.height = 3.5, fig.width = 5, fig.align= 'center'}
+cpt <- "Predicted basic reproduction number from the calibration of SEIR S."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+summary_stan_und[[mtx]]$R_0$g +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 ### Incidence goodness of fit
@@ -1975,7 +2807,7 @@ errors_ts_stan_und <- data.frame(matrix = m_index,
 ```{r, fig.height = 3}
 error_ts <- bind_rows(errors_ts_optim_und, errors_ts_stan_und)
 
-ggplot(error_ts, aes(x = matrix, y = MASE)) +
+g <- ggplot(error_ts, aes(x = matrix, y = MASE)) +
   geom_lollipop(aes(colour = is_min)) +
   scale_colour_manual(values = c("grey", "steelblue")) +
   coord_flip() +
@@ -1985,8 +2817,18 @@ ggplot(error_ts, aes(x = matrix, y = MASE)) +
   theme_test() +
   theme(legend.position = "none")
 
-ggsave("./plots/A_incidence_fit_underreporting.pdf", dpi = "print", height = 3,
-       width = 8)
+ggsave("./plots/A_incidence_fit_underreporting.pdf", plot = g, dpi = "print", 
+       height = 3, width = 8)
+
+cpt <- "Accuracy of estimated incidences by model variant and calibration method."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +  
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 ### Likelihood
@@ -2015,7 +2857,7 @@ log_liks_stan <- data.frame(matrix  = m_index,
 
 log_liks_df <- bind_rows(log_liks_optim, log_liks_stan)
 
-ggplot(log_liks_df , aes(x = matrix, y = log_lik)) +
+g <- ggplot(log_liks_df , aes(x = matrix, y = log_lik)) +
   geom_point(aes(colour = is_max)) +
   scale_colour_manual(values = c("grey", "steelblue")) +
   coord_flip() +
@@ -2026,6 +2868,16 @@ ggplot(log_liks_df , aes(x = matrix, y = log_lik)) +
   theme(legend.position = "none") +
   labs(y = "Log-likelihood",
        x = "Structure")
+
+cpt <- "Log-likelihood by model variant and calibration method. For HMC, displayed values correspond\nto mean estimates from Stan's samples."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+labs(caption = cpt) +
+theme(plot.caption = element_text(hjust = 0, face= "italic"),
+      plot.caption.position =  "plot")
 ```
 
 ### Reporting value
@@ -2051,7 +2903,16 @@ g_comparison_reporting_value <- draw_dcg(df_rv, c(0.5, 1), 0.8)
 
 ggsave("./plots/A_comparison_reporting_value.pdf", dpi = "print", height = 3,
        width = 8)
-print(g_comparison_reporting_value)
+
+cpt <- "Estimated reporting probabilities by model variant and calibration method.\nThe dashed line denotes the actual value. Bars indicate the 95 % credible interval in HMC estimates."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_comparison_reporting_value +
+labs(caption = cpt) +
+theme(plot.caption = element_text(hjust = 0, face= "italic"),
+      plot.caption.position =  "plot")
 ```
 
 ## $R_{0}$ estimation
@@ -2079,7 +2940,7 @@ R_optim_und <- data.frame(matrix   = m_index,
 
 R_nought_est <- bind_rows(R0_stan_prf, R0_stan_und, R_optim_prf, R_optim_und)
 
-ggplot(R_nought_est, aes(x = matrix, y = R0)) +
+g <- ggplot(R_nought_est, aes(x = matrix, y = R0)) +
   geom_point() +
   geom_errorbar(aes(ymin = lower.bound, ymax = upper.bound), width =.1) +
   geom_hline(yintercept = output_sp$theoretical_R0, linetype = "dashed") +
@@ -2087,10 +2948,20 @@ ggplot(R_nought_est, aes(x = matrix, y = R0)) +
   facet_grid(method ~ scenario) +
   theme_test() +
   theme(legend.text  = element_text(size = 3)) +
-  labs(x = "Structure", y = bquote(R[0]))
+  labs(x = "Variant", y = bquote(R[0]))
 
-ggsave("./plots/A_R0comparison.pdf", dpi = "print", height = 5,
+ggsave("./plots/A_R0comparison.pdf", plot = g, dpi = "print", height = 5,
        width = 8)
+
+cpt <- "Estimated basic reproduction number by model variant and calibration method.\nThe dashed line denotes the actual value. Bars indicate the 95 % credible interval in HMC estimates."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+labs(caption = cpt) +
+theme(plot.caption = element_text(hjust = 0, face= "italic"),
+      plot.caption.position =  "plot")
 ```
 
 \newpage
@@ -2130,7 +3001,7 @@ K_error_df <- map_df(K_error_list, function(df) {
   df %>% mutate(is_min = SMAPE == min_SMAPE)
 })
 
-ggplot(K_error_df, aes(x = matrix, y = SMAPE)) +
+g <- ggplot(K_error_df, aes(x = matrix, y = SMAPE)) +
   geom_lollipop(aes(colour = is_min)) +
   scale_y_continuous(limits = c(0, 2)) +
   coord_flip() +
@@ -2140,10 +3011,20 @@ ggplot(K_error_df, aes(x = matrix, y = SMAPE)) +
   facet_grid(scenario ~ method) +
   theme_test() +
   theme(legend.position = "none") +
-  labs(x = "Structure")
+  labs(x = "Variant")
 
-ggsave("./plots/A_WAIFWcomparison.pdf", dpi = "print", height = 5,
+ggsave("./plots/A_WAIFWcomparison.pdf", plot = g, dpi = "print", height = 5,
        width = 8)
+
+cpt <- "Accuracy of estimated scaled WAIFW matrices by model variant and calibration method."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+labs(caption = cpt) +
+theme(plot.caption = element_text(hjust = 0, face= "italic"),
+      plot.caption.position =  "plot")
 ```
 
 ## Computational time
@@ -2168,7 +3049,15 @@ t4    <- data.frame(matrix = m_index, time = times, method = "HMC",
 
 t_df <- bind_rows(t1, t2, t3, t4)
 
-g_time_comparison(t_df)
+cpt <- "Computational time spent in fitting each model variant by calibration method."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_time_comparison(t_df) +
+labs(caption = cpt) +
+theme(plot.caption = element_text(hjust = 0, face= "italic"),
+      plot.caption.position =  "plot")
 ```
 
 
