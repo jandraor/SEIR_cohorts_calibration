@@ -8,7 +8,7 @@ header-includes:
   - \usepackage{booktabs}
 ---
 
-This appendix aims to illustrate the process of calibrating a disaggregated
+This appendix aims to illustrate the process of calibrating an age-structured
 SEIR model to the 1957 Flu data via Hamiltonian Monte Carlo. We assess the 
 results by exploring trace plots, estimates for the basic reproduction 
 number ($R_0$) and the scaled WAIFW matrix.
@@ -17,7 +17,7 @@ number ($R_0$) and the scaled WAIFW matrix.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                      cache = TRUE)
+                      cache = FALSE)
 
 ## WORKAROUND: https://github.com/rstudio/rstudio/issues/6692
 ## Revert to 'sequential' setup of PSOCK cluster in RStudio Console on macOS and R 4.0.0
@@ -40,6 +40,9 @@ library(stringr)
 library(tidyr)
 
 source("./R/Metrics.R")
+
+# Figure counter
+fc <- 0
 ```
 
 \newpage
@@ -66,11 +69,21 @@ pop_df <- data.frame(age_group  = age_groups,
                      population = c(949, 1690, 3467, 1894)) %>% 
   mutate(proportion = population / sum(population))
 
-ggplot(flu_data, aes(x = week, y = y)) +
+g <- ggplot(flu_data, aes(x = week, y = y)) +
   geom_col(fill = "steelblue") +
   facet_wrap(~ cohort) +
   theme_pubr() +
   labs(y = "Incidence")
+
+cpt <- "Weekly age-specific number of influenza cases reported to a general practice in Wales\nduring the 1957 influenza pandemic, from 25 August 1957 to 29 December 1957"
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
 # Calibration
@@ -189,12 +202,22 @@ post_names <- dimnames(posterior)[[3]]
 post_names[match(params_translation$original, post_names)] <- params_translation$new
 dimnames(posterior)[[3]] <- post_names
 
-mcmc_trace(posterior, pars = c("rho", params_translation$new),
+g <- mcmc_trace(posterior, pars = c("rho", params_translation$new),
            facet_args = list(labeller = label_parsed),
            n_warmup = 1000) +
   theme_minimal() +
   theme(legend.position = "bottom",
         axis.text = element_text(size = 8))
+
+cpt <- "Trace plots of the calibrated parameters. Each panels corresponds to the ten separate transmission rates\nin the unrestricted symmetric model and the reporting probability. Four Markov chains are displayed per panel.\nThe shaded area indicates the warm-up period."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
 ### Fit
@@ -216,7 +239,16 @@ metrics <- accuracy_metrics(sim_data, real_data2, age_groups)
 
 ggsave(file = "./plots/C_flu1957.pdf", g_ts, dpi = "print",
        height = 4, width = 6)
-g_ts
+
+cpt <- "Comparison between the estimated age-specific incidences by HMC (blue line) and the data\nfrom 1957 Asian Flu (dots). The shaded area around the solid line indicate 95% credible intervals."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g_ts +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
 ### K matrix
@@ -232,19 +264,36 @@ colnames(param_samples) <- o_SEIR$params
 k_hat  <- get_mean_k_hat(param_samples, cm, nc, age_groups)
 int_df <- get_k_intervals(param_samples, cm)
 
-draw_WAIFW(k_hat, "Weekly rates", int_df, precision = 1)
+g <- draw_WAIFW(k_hat, "Weekly transmission rates", int_df, precision = 1)
+
+cpt <- "Estimated scaled WAIFW matrix.\nValues inside the brackets indicate 95 % credible intervals"
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g + 
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
 ### $R_0$
 
-```{r}
+```{r, fig.height = 4}
 specs_list <- list(x_pos = 2.04, ypos_mean = 17, ypos_median = 16,
-                   text_size = 2, ypos_interval = 15,
-                   title = "Symmetric matrix", xlabel = "")
+                   text_size = 2, ypos_interval = 15, xlabel = "")
 
 R_0_obj <- posterior_R0(param_samples, cm, pop_df, tau_I = 1.5 / 7)
 
-R_0_obj$g
+cpt <- "Predicted basic reproduction number"
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+R_0_obj$g + 
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
 

@@ -9,7 +9,7 @@ header-includes:
 ---
 
 This appendix aims to illustrate the sensitivity analysis performed on the 
-calibration of disaggregated SEIR models to synthetic data via Hamiltonian Monte
+calibration of age-structured SEIR models to synthetic data via Hamiltonian Monte
 Carlo. The sole assumption for the transmission rates lies in its symmetry. No
 further constrains are imposed. The analysis is divided into two sections: 
 1) Sensitivity to the population size; 2) Sensitivity to the number of cohorts.
@@ -18,7 +18,7 @@ further constrains are imposed. The analysis is divided into two sections:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                      cache = TRUE)
+                      cache = FALSE)
 
 ## WORKAROUND: https://github.com/rstudio/rstudio/issues/6692
 ## Revert to 'sequential' setup of PSOCK cluster in RStudio Console on macOS and R 4.0.0
@@ -52,6 +52,9 @@ source("./R/graphs.R")
 source("./R/Metrics.R")
 source("./R/summaries_utils.R")
 source("./R/synthetic_incidence.R")
+
+# Figure counter
+fc <- 0
 ```
 
 \newpage
@@ -95,7 +98,14 @@ grey_actual_K <- output_sp_list[[1]]$g_K_matrix +
   scale_fill_gradient(low = "#D3D3D3", high = "#696969") +
   labs(subtitle = "Actual K")
 
-output_sp_list[[1]]$g_K_matrix
+cpt <- "Synthetic scaled WAIFW matrix"
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+output_sp_list[[1]]$g_K_matrix +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 \newpage
 
@@ -121,7 +131,7 @@ combined_df <- imap_dfr(output_gsi, function(syn_obj, label) {
   syn_obj$tidy_list$und %>% mutate(case = label)
 }) %>% mutate(case = factor(case, levels = case_names))
 
-ggplot(combined_df, aes(x = time, y = y)) +
+g <- ggplot(combined_df, aes(x = time, y = y)) +
   geom_col(fill = "steelblue") +
   scale_y_continuous(labels = comma) +
   facet_grid(case ~ cohort, scales = "free") +
@@ -129,6 +139,15 @@ ggplot(combined_df, aes(x = time, y = y)) +
   labs(title = "Incidence per age group and scenario",
        y = "Incidence [cases / day]",
        x = "Days")
+
+cpt <- "Synthetic incidences by age group and scenario. Scenario refers to population size.\nThese incidences are underreported (80 % reporting probability)"
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 \newpage
 
@@ -226,13 +245,26 @@ sens_summary[[case]] <- summarise_results(stan_fit_list[[case]],
 pred_K <- sens_summary[[case]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) transmission rates and the actual scaled\nWAIFW values. Values inside the brackets indicate 95 % credible intervals. Scenario: N = 10,000."
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
 
 \hfill
 
-```{r fig.height = 3.5, fig.align = 'center'}
-sens_summary[[case]]$ts_summary$g_comparison
+```{r fig.height = 4, fig.align = 'center'}
+cpt <- "Incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data.\nScenario: N = 10,000."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+sens_summary[[case]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 
@@ -284,13 +316,26 @@ sens_summary[[case]] <- summarise_results(stan_fit_list[[case]],
 pred_K <- sens_summary[[case]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) transmission rates and the actual scaled\nWAIFW values. Values inside the brackets indicate 95 % credible intervals. Scenario: N = 100,000."
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
 
 \hfill
 
-```{r fig.height = 3.5, fig.align = 'center'}
-sens_summary[[case]]$ts_summary$g_comparison
+```{r fig.height = 4, fig.align = 'center'}
+cpt <- "Incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data.\nScenario: N = 100,000."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+sens_summary[[case]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 ### Population size (N = 1,000,000)
@@ -341,13 +386,27 @@ sens_summary[[case]] <- summarise_results(stan_fit_list[[case]],
 pred_K <- sens_summary[[case]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_actual_K, ncol = 2)
+cpt <- "Comparison between the average (mean) transmission rates and the actual scaled\nWAIFW values. Values inside the brackets indicate 95 % credible intervals. Scenario: N = 1,000,000."
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+grid.arrange(pred_K, grey_actual_K, ncol = 2, bottom = tg)
 ```
 
 \hfill
 
-```{r fig.height = 3.5, fig.align = 'center'}
-sens_summary[[case]]$ts_summary$g_comparison
+```{r fig.height = 4, fig.align = 'center'}
+cpt <- "Incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data.\nScenario: N = 1,000,000."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+
+sens_summary[[case]]$ts_summary$g_comparison  +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 ## Reporting value
 
@@ -361,16 +420,25 @@ rv_stan  <- map_df(sens_summary, function(sum_stan) {
              upper.bound = rho_list$upper_bound)
 }) %>% mutate(x = factor(case_names, levels = case_names))
 
-ggplot(rv_stan, aes(x = x, y = y)) +
+g <- ggplot(rv_stan, aes(x = x, y = y)) +
     geom_point() +
     geom_errorbar(aes(ymin = lower.bound, ymax = upper.bound), width =.1) +
     geom_hline(yintercept = reporting_fraction, linetype = "dashed") +
     scale_y_continuous(limits = c(0.7, 0.9)) +
     theme_pubr() +
     theme(legend.text  = element_text(size = 3)) +
-    labs(x = "Scenario", y = "Reporting fraction",
-         title = "Reporting fraction by scenario",
-         caption = "The dashed line indicates the actual value")
+    labs(x = "Scenario", y = "Reporting probability",
+         title = "Reporting probability by scenario")
+
+cpt <- "Estimated reporting probability by population size scenario.\nThe dashed line indicates the actual value. Bars indicate the 95 % credible interval."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
 ## $R_0$
@@ -379,7 +447,7 @@ ggplot(rv_stan, aes(x = x, y = y)) +
 R0_df <- map_df(sens_summary, consolidate_R0) %>% 
   mutate(x = factor(case_names, levels = case_names))
 
-ggplot(R0_df, aes(x = x, y = R0)) +
+g <- ggplot(R0_df, aes(x = x, y = R0)) +
   geom_point() +
   geom_errorbar(aes(ymin = lower.bound, ymax = upper.bound), width =.1) +
   geom_hline(yintercept = output_sp_list[[1]]$theoretical_R0, 
@@ -389,6 +457,16 @@ ggplot(R0_df, aes(x = x, y = R0)) +
   theme(legend.text  = element_text(size = 3)) +
   labs(x = "Scenario", y = bquote(R[0]),
        caption = "The dashed line indicates the actual value")
+
+cpt <- "Estimated basic reproduction number by population size scenario.\nThe dashed line denotes the actual value. Bars indicate the 95 % credible interval."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
 ## Time comparison
@@ -398,7 +476,7 @@ times <- map_dbl(time_sens, calculate_time)
 
 time_df <- data.frame(x = pop_sizes, y = times)
 
-ggplot(time_df, aes(x = x, y = y)) +
+g <- ggplot(time_df, aes(x = x, y = y)) +
   geom_lollipop(colour = "steelblue") +
   geom_line(colour = "grey30", alpha = 0.5, linetype = "dotted") +
   scale_x_log10(labels = comma) +
@@ -406,6 +484,16 @@ ggplot(time_df, aes(x = x, y = y)) +
   labs(x = "Population size",
        y = "Time [Minutes]",
        title = "Run time per scenario")
+
+cpt <- "Computational time by population size scenario."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
 
@@ -459,7 +547,12 @@ grey_K_list <- lapply(output_sp_list, function(output_sp) {
   labs(subtitle = "Actual K")
 })
 
-do.call("grid.arrange", c(g_K_matrix_list, ncol = 1))
+cpt <- "Synthetic scaled WAIFW matrices by cohort scenario."
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+do.call("grid.arrange", list(grobs = g_K_matrix_list, ncol = 1, bottom = tg))
 ```
 
 ## $R0$
@@ -486,40 +579,68 @@ output_gsi <- lapply(output_sp_list, generate_synthetic_incidence,
 ```{r}
 df <- output_gsi[[1]]$tidy_list$und
 
-ggplot(df, aes(x = time, y = y)) +
+g <- ggplot(df, aes(x = time, y = y)) +
   geom_col(fill = "steelblue") +
   facet_wrap(~cohort) +
   theme_pubr() +
-  labs(title    = "Incidence per age group and scenario",
-       subtitle = "n = 4",
+  labs(title    = "Incidence per age group and scenario (n = 4)",
        x        = "Days",
        y        = "Incidence")
+
+cpt <- "Synthetic incidences by age group. Scenario: Number of cohorts = 4. \nThese incidences are underreported (80 % reporting probability)"
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
-```{r}
+
+
+```{r, fig.height = 4}
 df <- output_gsi[[2]]$tidy_list$und
 
-ggplot(df, aes(x = time, y = y)) +
+g <- ggplot(df, aes(x = time, y = y)) +
   geom_col(fill = "steelblue") +
   facet_wrap(~cohort) +
   theme_pubr() +
-  labs(title = "Incidence per age group and scenario",
-       subtitle = "n = 5",
+  labs(title = "Incidence per age group and scenario (n = 5)",
        x        = "Days",
        y        = "Incidence")
+
+cpt <- "Synthetic incidences by age group. Scenario: Number of cohorts = 5. \nThese incidences are underreported (80 % reporting probability)"
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
-```{r}
+\hfill
+
+```{r, fig.height = 4}
 df <- output_gsi[[3]]$tidy_list$und
 
-ggplot(df, aes(x = time, y = y)) +
+g <- ggplot(df, aes(x = time, y = y)) +
   geom_col(fill = "steelblue") +
   facet_wrap(~cohort) +
   theme_pubr() +
-  labs(title = "Incidence per age group and scenario",
-       subtitle = "n = 6",
+  labs(title = "Incidence per age group and scenario (n = 6)",
        x        = "Days",
        y        = "Incidence")
+
+cpt <- "Synthetic incidences by age group. Scenario: Number of cohorts = 6. \nThese incidences are underreported (80 % reporting probability)"
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
 
@@ -613,13 +734,27 @@ sens_coh_summary[[coh]] <- summarise_results(coh_fit_list[[coh]],
 pred_K <- sens_coh_summary[[coh]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2)
+cpt <- "Comparison between the average (mean) transmission rates and the actual scaled\nWAIFW values. Values inside the brackets indicate 95 % credible intervals. Scenario: number of cohorts = 4."
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+
+grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2, bottom = tg)
 ```
 
 \hfill
 
-```{r fig.height = 3.5, fig.align = 'center'}
-sens_coh_summary[[coh]]$ts_summary$g_comparison
+```{r fig.height = 4, fig.align = 'center'}
+cpt <- "Incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data.\nScenario: number of cohorts = 4."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+sens_coh_summary[[coh]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 
@@ -675,13 +810,27 @@ sens_coh_summary[[coh]] <- summarise_results(coh_fit_list[[coh]],
 pred_K <- sens_coh_summary[[coh]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2)
+cpt <- "Comparison between the average (mean) transmission rates and the actual scaled\nWAIFW values. Values inside the brackets indicate 95 % credible intervals. Scenario: number of cohorts = 5."
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+
+grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2, bottom = tg)
 ```
 
 \hfill
 
 ```{r fig.height = 3.5, fig.align = 'center'}
-sens_coh_summary[[coh]]$ts_summary$g_comparison
+cpt <- "Incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data.\nScenario: number of cohorts = 5."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+sens_coh_summary[[coh]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 ### 6 Cohorts
@@ -738,13 +887,28 @@ sens_coh_summary[[coh]] <- summarise_results(coh_fit_list[[coh]],
 pred_K <- sens_coh_summary[[coh]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2)
+cpt <- "Comparison between the average (mean) transmission rates and the actual scaled\nWAIFW values. Values inside the brackets indicate 95 % credible intervals. Scenario: number of cohorts = 6."
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+tg  <- text_grob(cpt, hjust = 0, size = 8, x = 0, face = "italic")
+
+grid.arrange(pred_K, grey_K_list[[coh]], ncol = 2, bottom = tg)
 ```
 
 \hfill
 
-```{r fig.height = 3.5, fig.align = 'center'}
-sens_coh_summary[[coh]]$ts_summary$g_comparison
+```{r fig.height = 4, fig.align = 'center'}
+
+cpt <- "Incidence fit. The blue line indicates the average time-series estimated from Stan's\nsamples. The shaded area indicates the 95 % credible interval. The grey dots denote the actual data.\nScenario: number of cohorts = 6."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+sens_coh_summary[[coh]]$ts_summary$g_comparison +
+  labs(caption = cpt) +
+  theme(plot.caption = element_text(hjust = 0, face= "italic"),
+        plot.caption.position =  "plot")
 ```
 
 ## Reporting value
@@ -759,7 +923,7 @@ rv_stan  <- map_df(sens_coh_summary, function(sum_stan) {
              upper.bound = rho_list$upper_bound)
 }) %>% mutate(x = factor(case_names, levels = case_names))
 
-ggplot(rv_stan, aes(x = x, y = y)) +
+g <- ggplot(rv_stan, aes(x = x, y = y)) +
     geom_point() +
     geom_errorbar(aes(ymin = lower.bound, ymax = upper.bound), width =.1) +
     geom_hline(yintercept = reporting_fraction, linetype = "dashed") +
@@ -768,6 +932,16 @@ ggplot(rv_stan, aes(x = x, y = y)) +
     theme(legend.text  = element_text(size = 3)) +
     labs(x = "Scenario", y = "Reporting fraction",
          title = "Reporting fraction by scenario")
+
+cpt <- "Estimated reporting probability by cohort scenario.\nThe dashed line indicates the actual value. Bars indicate the 95 % credible interval."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
 ## Estimated $R_0$
@@ -776,7 +950,7 @@ ggplot(rv_stan, aes(x = x, y = y)) +
 R0_df <- map_df(sens_coh_summary, consolidate_R0) %>% 
   mutate(x = factor(case_names, levels = case_names))
 
-ggplot(R0_df, aes(x = x, y = R0)) +
+g <- ggplot(R0_df, aes(x = x, y = R0)) +
   geom_point(size = 2, alpha = 0.5) +
   geom_errorbar(aes(ymin = lower.bound, ymax = upper.bound), width =.1, 
                 alpha = 0.75) +
@@ -785,9 +959,17 @@ ggplot(R0_df, aes(x = x, y = R0)) +
              shape = 4) +
   theme_pubr() +
   theme(legend.text  = element_text(size = 3)) +
-  labs(x = "Scenario", y = bquote(R[0]),
-       caption = "The cross indicates the actual value",
-       title = "Estimation per scenario")
+  labs(x = "Scenario", y = bquote(R[0]))
+
+cpt <- "Estimated basic reproduction number by cohort scenario.\nCrosses denote actual values. Bars indicate the 95 % credible interval."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face = "italic"),
+       plot.caption.position =  "plot")
 ```
 
 
@@ -798,7 +980,7 @@ times <- map_dbl(time_coh, calculate_time)
 
 time_df <- data.frame(x = n_coh, y = times)
 
-ggplot(time_df, aes(x = x, y = y)) +
+g <- ggplot(time_df, aes(x = x, y = y)) +
   geom_lollipop(colour = "steelblue") +
   geom_line(colour = "grey30", alpha = 0.5, linetype = "dotted") +
   scale_x_continuous(breaks = 4:6) +
@@ -806,6 +988,16 @@ ggplot(time_df, aes(x = x, y = y)) +
   labs(x = "Number of cohorts",
        y = "Time [Minutes]",
        title = "Run time per scenario")
+
+cpt <- "Computational time by cohort scenario."
+
+fc  <- fc + 1
+cpt <- paste0("Figure ", fc, ". ", cpt)
+
+g +
+ labs(caption = cpt) +
+ theme(plot.caption = element_text(hjust = 0, face= "italic"),
+       plot.caption.position =  "plot")
 ```
 
 

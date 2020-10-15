@@ -969,7 +969,7 @@ summary_stan[[mtx]] <- summarise_results(stan_fit_A, conceptual_matrix_A,
 pred_K <- summary_stan[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR A via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+cpt <- "Comparison between the average (mean) transmission rates obtained from the calibration\nof the SEIR A via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
@@ -1081,7 +1081,7 @@ summary_stan[[mtx]] <- summarise_results(stan_fit_B, conceptual_matrix_B,
 pred_K <- summary_stan[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR B via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+cpt <- "Comparison between the average (mean) transmission rates obtained from the calibration\nof the SEIR B via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
@@ -1192,7 +1192,7 @@ summary_stan[[mtx]] <- summarise_results(stan_fit_C, conceptual_matrix_C,
 pred_K <- summary_stan[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR C via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+cpt <- "Comparison between the average (mean) transmission rates obtained from the calibration\nof the SEIR C via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
@@ -1301,7 +1301,7 @@ summary_stan[[mtx]] <- summarise_results(stan_fit_D, conceptual_matrix_D,
 pred_K <- summary_stan[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR D via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+cpt <- "Comparison between the average (mean) transmission rates obtained from the calibration\nof the SEIR D via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
@@ -1372,7 +1372,7 @@ g_for_plot <- mcmc_trace(posterior, pars = c("kappa[11]", "kappa[22]",
            n_warmup = 1000) +
   theme_minimal()
 
-cpt <- "SEIR D's trace plot. Panels corresponds to the four separate parameters in this configuration.\nEach paneldisplays four Markov chains. The shaded area indicates the warm-up period."  
+cpt <- "SEIR D's trace plot. Each panel corresponds to the four separate parameters in this configuration.\nFour Markov chains are displayed per panel. The shaded area indicates the warm-up period."  
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
@@ -1449,7 +1449,7 @@ g_for_plot <- arrangeGrob(pred_K, grey_actual_K, ncol = 2)
 ggsave(file = "./plots/A_WAIFW_sym_HMC.pdf", plot = g_for_plot, dpi = "print",
        height = 3, width = 6)
 
-cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR S via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+cpt <- "Comparison between the average (mean) transmission rates obtained from the calibration\nof the SEIR S via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
@@ -2281,7 +2281,7 @@ summary_stan_und[[mtx]] <- summarise_results(stan_und_A, cm_list[[mtx]],
 pred_K <- summary_stan_und[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR A via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+cpt <- "Comparison between the average (mean) transmission rates obtained from the calibration\nof the SEIR A via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
@@ -2391,7 +2391,7 @@ summary_stan_und[[mtx]] <- summarise_results(stan_und_B, cm_list[[mtx]],
 pred_K <- summary_stan_und[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR B via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+cpt <- "Comparison between the average (mean) transmission rates obtained from the calibration\nof the SEIR B via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
@@ -2500,7 +2500,7 @@ summary_stan_und[[mtx]] <- summarise_results(stan_und_C, cm_list[[mtx]],
 pred_K <- summary_stan_und[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR C via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+cpt <- "Comparison between the average (mean) transmission rates obtained from the calibration\nof the SEIR C via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
@@ -2610,7 +2610,7 @@ summary_stan_und[[mtx]] <- summarise_results(stan_und_D, cm_list[[mtx]],
 pred_K <- summary_stan_und[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR D via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+cpt <- "Comparison between the average (mean) transmission rates obtained from the calibration\nof the SEIR D via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
@@ -2721,7 +2721,7 @@ summary_stan_und[[mtx]] <- summarise_results(stan_und_sym, cm_list[[mtx]],
 pred_K <- summary_stan_und[[mtx]]$summary_k$g_k_hat + 
   labs(subtitle = "Predicted K")
 
-cpt <- "Comparison between the average (mean) simulated transmission rates obtained from the calibration\nof the SEIR S via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
+cpt <- "Comparison between the average (mean) transmission rates obtained from the calibration\nof the SEIR S via HMC, and the actual scaled WAIFW values.\nValues inside the brackets indicate 95 % credible intervals."
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
@@ -3049,7 +3049,7 @@ t4    <- data.frame(matrix = m_index, time = times, method = "HMC",
 
 t_df <- bind_rows(t1, t2, t3, t4)
 
-cpt <- "Computational time spent in fitting each model variant by calibration method."
+cpt <- "Computational time spent on fitting each model variant by calibration method."
 
 fc  <- fc + 1
 cpt <- paste0("Figure ", fc, ". ", cpt)
