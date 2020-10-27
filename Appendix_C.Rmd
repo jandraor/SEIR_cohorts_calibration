@@ -27,6 +27,7 @@ if (Sys.getenv("RSTUDIO") == "1" && !nzchar(Sys.getenv("RSTUDIO_TERM")) &&
 }
 
 library(bayesplot)
+library(cmdstanr)
 library(dplyr)
 library(ggplot2)
 library(ggpubr)
@@ -37,6 +38,7 @@ library(readr)
 library(readsdr)
 library(scales)
 library(stringr)
+library(tictoc)
 library(tidyr)
 
 source("./R/Metrics.R")
@@ -90,10 +92,10 @@ g +
 
 ## Biological parameters
 
-* Latent period ($\sigma^{-1}$): 1 day. It is the inverse of the rate of 
+* Latent period ($\sigma^{-1}$): 1.5 days. It is the inverse of the rate of 
 onset of infectiousness.
 
-* Infectious period ($\gamma^{-1}$): 2 days. It is the inverse of the recovery
+* Infectious period ($\gamma^{-1}$): 1.5 days. It is the inverse of the recovery
 rate.
 
 ## Priors
@@ -264,7 +266,10 @@ colnames(param_samples) <- o_SEIR$params
 k_hat  <- get_mean_k_hat(param_samples, cm, nc, age_groups)
 int_df <- get_k_intervals(param_samples, cm)
 
-g <- draw_WAIFW(k_hat, "Weekly transmission rates", int_df, precision = 1)
+g <- draw_WAIFW(k_hat, "Weekly scaled transmission rates", int_df, precision = 1)
+
+ggsave(file = "./plots/C_flu_WAIFW.pdf", g, dpi = "print",
+       height = 4, width = 6)
 
 cpt <- "Estimated scaled WAIFW matrix.\nValues inside the brackets indicate 95 % credible intervals"
 
