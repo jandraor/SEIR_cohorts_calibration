@@ -1,7 +1,8 @@
 
 # Andrade & Duggan (2020)
 
-This repository contains code for the paper:
+This repository contains code for the
+[paper](https://doi.org/10.1016/j.epidem.2020.100415):
 
 [Jair Andrade](https://www.linkedin.com/in/jandraor/) and [Jim
 Duggan](https://ie.linkedin.com/in/jduggan). *An evaluation of
@@ -10,9 +11,9 @@ compartmental SEIR models to incidence data*
 
 The analysis in this study can be reproduced by executing the files:
 
-  - **Appendix\_A.rmd**
-  - **Appendix\_B.rmd**
-  - **Appendix\_C.rmd**
+-   **Appendix\_A.rmd**
+-   **Appendix\_B.rmd**
+-   **Appendix\_C.rmd**
 
 ## Abstract
 
